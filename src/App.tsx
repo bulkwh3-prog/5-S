@@ -317,6 +317,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   
   // Language State (Thai, English, Burmese)
   const [language, setLanguage] = useState<"th" | "en" | "my">(() => {
@@ -396,15 +397,20 @@ export default function App() {
   const fetchData = async () => {
     try {
       const response = await fetch("/api/data");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      }
       const data = await response.json();
       setDb(data);
       if (data.settings) {
         setSheetUrl(data.settings.googleSheetUrl || "");
         setDailyTarget(data.settings.dailyTarget || 15);
       }
+      setFetchError(null);
       setLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching database:", error);
+      setFetchError(error?.message || "JSON Parse Error / Connection Lost");
       setLoading(false);
     }
   };
@@ -425,10 +431,10 @@ export default function App() {
       console.warn("Real-time updates connection closed or errored, will retry automatically:", err);
     };
 
-    // Periodic fallback polling (every 30 seconds) to guarantee sync even if client is offline or tab is backgrounded
+    // Periodic fallback polling (every 10 seconds) to guarantee quick recovery on connection drop
     const interval = setInterval(() => {
       fetchData();
-    }, 30000);
+    }, 10000);
 
     return () => {
       eventSource.close();
@@ -1195,8 +1201,60 @@ export default function App() {
         {/* LOADING INDICATOR */}
         {loading && (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-500" id="loading_spinner">
-            <RefreshCw className="h-8 w-8 animate-spin text-emerald-500 mb-2" />
-            <p className="text-sm font-medium">กำลังโหลดข้อมูลและซิงค์คะแนนสะสม...</p>
+            <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mb-2" />
+            <p className="text-sm font-medium">
+              {language === "th" 
+                ? "กำลังโหลดข้อมูลและซิงค์คะแนนสะสม..." 
+                : language === "en" 
+                ? "Loading data and syncing points..." 
+                : "အချက်အလက်များတင်နေပြီး အမှတ်များကို စင့်ခ်လုပ်နေပါသည်..."}
+            </p>
+          </div>
+        )}
+
+        {/* ERROR STATE WITH AUTOMATIC RETRY */}
+        {!loading && !db && (
+          <div className="flex-1 flex flex-col items-center justify-center py-16 px-4 text-center bg-white/80 backdrop-blur-sm border-2 border-slate-100 rounded-3xl shadow-xl max-w-2xl mx-auto my-10" id="error_state_container">
+            <div className="bg-amber-100 p-4 rounded-full text-amber-600 mb-4 animate-pulse">
+              <RefreshCw className="h-10 w-10 animate-spin" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-800 mb-2">
+              {language === "th" 
+                ? "กำลังรอการเชื่อมต่อเซิร์ฟเวอร์..." 
+                : language === "en" 
+                ? "Waiting for server connection..." 
+                : "ဆာဗာချိတ်ဆက်မှုကို စောင့်ဆိုင်းနေပါသည်..."}
+            </h3>
+            <p className="text-sm text-slate-500 max-w-md mb-6 leading-relaxed">
+              {language === "th" 
+                ? "เซิร์ฟเวอร์กำลังเริ่มต้นทำงานหรือกำลังดาวน์โหลดข้อมูลล่าสุด ระบบจะเชื่อมต่อและรีเฟรชหน้าจอนี้โดยอัตโนมัติภายในสักครู่" 
+                : language === "en" 
+                ? "The server is starting up or downloading the latest data. This page will automatically connect and refresh shortly." 
+                : "ဆာဗာသည် စတင်နေပြီး နောက်ဆုံးအချက်အလက်များကို ရယူနေပါသည်။ ဤစာမျက်နှาသည် မကြာမီ အလိုအလျောက် ပြန်လည်စတင်ပါမည်။"}
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  fetchData();
+                }}
+                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>
+                  {language === "th" 
+                    ? "ลองเชื่อมต่อใหม่" 
+                    : language === "en" 
+                    ? "Retry Connection" 
+                    : "ပြန်လည်ကြိုးစားပါ"}
+                </span>
+              </button>
+            </div>
+            
+            <p className="text-[11px] text-slate-400 mt-6 font-mono font-medium">
+              Error Details: {fetchError || "Transient connection loss"}
+            </p>
           </div>
         )}
 
