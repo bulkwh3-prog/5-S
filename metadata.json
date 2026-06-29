@@ -1,0 +1,6 @@
+{
+  "name": "ระบบรายงานการทำความสะอาด",
+  "description": "ระบบบันทึกรายงานการทำความสะอาด เปรียบเทียบรูป Before/After พร้อมระบบสะสมคะแนน ภารกิจรายวัน แดชบอร์ดสถิติ และการซิงค์รายชื่อผู้ส่งจาก Google Sheets",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

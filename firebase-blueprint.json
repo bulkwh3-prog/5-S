@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "Submitter": {
+      "title": "Submitter",
+      "description": "A person who submits cleaning reports and earns points.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the submitter."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the submitter."
+        },
+        "points": {
+          "type": "number",
+          "description": "The total points earned."
+        },
+        "streak": {
+          "type": "number",
+          "description": "The current daily streak."
+        },
+        "lastSubmittedAt": {
+          "type": "string",
+          "description": "ISO timestamp of the last submission."
+        }
+      },
+      "required": ["id", "name", "points", "streak"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "A cleaning report containing before/after images and details.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the report."
+        },
+        "submitterId": {
+          "type": "string",
+          "description": "The ID of the submitter."
+        },
+        "submitterName": {
+          "type": "string",
+          "description": "The name of the submitter."
+        },
+        "beforeImage": {
+          "type": "string",
+          "description": "Base64 encoded JPEG data URL for Before image."
+        },
+        "afterImage": {
+          "type": "string",
+          "description": "Base64 encoded JPEG data URL for After image."
+        },
+        "beforeTime": {
+          "type": "string",
+          "description": "Timestamp on the Before image."
+        },
+        "afterTime": {
+          "type": "string",
+          "description": "Timestamp on the After image."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the report was submitted."
+        },
+        "pointsEarned": {
+          "type": "number",
+          "description": "Points earned for this submission."
+        }
+      },
+      "required": ["id", "submitterId", "submitterName", "beforeImage", "afterImage", "beforeTime", "afterTime", "createdAt", "pointsEarned"]
+    },
+    "DailyStats": {
+      "title": "DailyStats",
+      "description": "Daily statistics and progress tracking.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The date in YYYY-MM-DD format."
+        },
+        "count": {
+          "type": "number",
+          "description": "Total submissions on this date."
+        },
+        "submitterCounts": {
+          "type": "object",
+          "description": "Map of submitter ID to their submission count today."
+        }
+      },
+      "required": ["id", "count", "submitterCounts"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Application settings including Google Sheets integration.",
+      "type": "object",
+      "properties": {
+        "googleSheetUrl": {
+          "type": "string",
+          "description": "The URL of the Google Sheet for custom names."
+        },
+        "googleSheetId": {
+          "type": "string",
+          "description": "The Spreadsheet ID."
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/submitters/{submitterId}": {
+      "schema": "Submitter",
+      "description": "Collection of cleaning report submitters."
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Collection of cleaning reports."
+    },
+    "/daily_stats/{dateId}": {
+      "schema": "DailyStats",
+      "description": "Collection of daily statistics."
+    },
+    "/settings/config": {
+      "schema": "Settings",
+      "description": "Global settings for the application."
+    }
+  }
+}
