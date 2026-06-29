@@ -985,38 +985,35 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => changeLanguage("th")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3.5 py-1.5 rounded-xl text-base font-black transition-all cursor-pointer flex items-center justify-center ${
                   language === "th" 
                     ? "bg-white text-slate-800 shadow-sm" 
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <span>🇹🇭</span>
-                <span className="hidden sm:inline">{T[language].langTh}</span>
               </button>
               <button
                 type="button"
                 onClick={() => changeLanguage("en")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3.5 py-1.5 rounded-xl text-base font-black transition-all cursor-pointer flex items-center justify-center ${
                   language === "en" 
                     ? "bg-white text-slate-800 shadow-sm" 
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <span>🇺🇸</span>
-                <span className="hidden sm:inline">{T[language].langEn}</span>
               </button>
               <button
                 type="button"
                 onClick={() => changeLanguage("my")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3.5 py-1.5 rounded-xl text-base font-black transition-all cursor-pointer flex items-center justify-center ${
                   language === "my" 
                     ? "bg-white text-slate-800 shadow-sm" 
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <span>🇲🇲</span>
-                <span className="hidden sm:inline">{T[language].langMy}</span>
               </button>
             </div>
 
