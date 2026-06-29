@@ -40,59 +40,54 @@ const T = {
     tabDashboard: "แดชบอร์ดสถิติ & สรุปผล",
     tabSubmit: "ส่งรายงานความสะอาด",
     tabHistory: (count: number) => `ประวัติรายงาน (${count})`,
-    loadingText: "กำลังโหลดข้อมูลและซิงค์คะแนน...",
-    configBtn: "ตั้งค่ารายชื่อผู้ส่งของคุณ",
+    loadingText: "กำลังโหลดข้อมูลและซิงค์คะแนนสะสม...",
+    configBtn: "ตั้งค่ารายชื่อผู้ส่ง",
     manageSheets: "จัดการรายชื่อและเป้าหมายจาก Google Sheets",
-    sheetUrlLabel: "ลิงก์ Google Sheets (ต้องแชร์เป็นสาธารณะ / ทุกคนที่มีลิงก์สามารถดูได้)",
-    saveBtn: "บันทึก & ซิงค์ข้อมูล",
+    sheetUrlLabel: "ลิงก์ Google Sheets (แชร์เป็นสาธารณะ / ทุกคนมีสิทธิ์อ่าน)",
+    saveBtn: "บันทึกและซิงค์ข้อมูล",
     saving: "กำลังบันทึก...",
-    selectSubmitter: "👤 เลือกชื่อของคุณ (ผู้ส่งรายงาน)",
+    selectSubmitter: "👤 เลือกรายชื่อผู้ส่งของคุณ",
     selectCategory: "🧹 เลือกประเภทการทำความสะอาด / พื้นที่",
-    beforeLabel: "ก่อนทำความสะอาด (Before)",
-    afterLabel: "หลังทำความสะอาด (After)",
+    beforeLabel: "ก่อนกวาดถู (Before)",
+    afterLabel: "หลังกวาดถู (After)",
     uploadBefore: "อัปโหลดรูป Before",
     uploadAfter: "อัปโหลดรูป After",
     uploadDescBefore: "รูปถ่ายพื้นที่ที่ยังสกปรก",
     uploadDescAfter: "รูปถ่ายเมื่อทำความสะอาดเสร็จแล้ว",
     fileSize: (size: string) => `ขนาดไฟล์: ${size} KB (บีบอัดแล้ว)`,
-    detailsHeader: "รายละเอียดรายงานการทำความสะอาด",
-    submitterLabel: "ผู้ส่งรายงาน",
-    chooseSubmitterOption: "-- เลือกชื่อผู้ส่งรายงาน --",
-    pointsAccumulated: (pts: number) => `คะแนนสะสม: ${pts} แต้ม`,
-    streakDays: (days: number) => `ส่งต่อเนื่อง: ${days} วัน`,
-    submitBtnText: "ส่งรายงานความสะอาด & รับ +10 แต้ม!",
-    submittingText: "กำลังบันทึกรายงานและประทับเวลาบนรูปภาพ...",
-    leaderboardTitle: "ตารางคะแนนสะสม (Leaderboard)",
-    leaderboardSub: "อันดับผู้ทำความสะอาดที่ส่งรายงานและสะสมแต้มได้มากที่สุด",
+    detailsHeader: "รายละเอียดการรายงานความสะอาด",
+    submitterLabel: "รายชื่อผู้จัดทำ",
+    chooseSubmitterOption: "-- เลือกรายชื่อผู้จัดทำ --",
+    pointsAccumulated: (pts: number) => `คะแนนรวม: ${pts} แต้ม`,
+    streakDays: (days: number) => `Streak: ${days} วัน`,
+    submitBtnText: "ส่งรายงานความสะอาดสะสม +10 แต้ม!",
+    submittingText: "กำลังบันทึกข้อมูลและเพิ่มเวลารูปภาพ...",
+    leaderboardTitle: "ตารางผู้นำคะแนนสะสม",
+    leaderboardSub: "จัดอันดับพนักงานที่ทำความสะอาดและสะสมแต้มมากที่สุด",
     pointsText: "แต้ม",
     streakLabel: "วัน",
-    dailyBonusWinner: "ผู้ได้รับ Streak Bonus +20 วันนี้",
-    lastUpdated: "อัปเดตล่าสุดเมื่อ",
-    allTimeTitle: "รายชื่อผู้ส่งทั้งหมดในระบบ",
-    reportsCount: (count: number) => `${count} รายงาน`,
-    showCompareDetails: "แสดงรายละเอียดเปรียบเทียบรูปภาพ",
-    hideCompareDetails: "ซ่อนรายละเอียดเปรียบเทียบรูปภาพ",
-    filterDateLabel: "📅 เลือกช่วงเวลารายงาน",
-    allDates: "📅 ทุกวันทั้งหมด",
-    todayOnly: "📅 เฉพาะวันนี้",
-    submittersAndCompact: "ผู้ส่งรายงานประจำวันนี้",
-    submittersAndCompactSub: "รายชื่อคนทำงานวันนี้พร้อมภาพตัวอย่างเปรียบเทียบ Before/After ล่าสุด",
-    noSubmittersToday: "ยังไม่มีผู้ส่งรายงานสำหรับวันนี้",
-    noReportsHistory: "ไม่พบรายงานในประวัติ",
-    historySub: "ตรวจสอบประวัติรายงานการทำความสะอาดทั้งหมดแบบเปรียบเทียบ Before & After",
-    timeBefore: "เวลาก่อนทำความสะอาด",
-    timeAfter: "เวลาหลังทำความสะอาด",
+    dailyBonusWinner: "ผู้ได้รับแต้มพิเศษ Streak Bonus +20",
+    lastUpdated: "อัปเดตล่าสุด",
+    allTimeTitle: "สถิติผู้ส่งทั้งหมดในระบบ",
+    reportsCount: (count: number) => `${count} ครั้ง`,
+    showCompareDetails: "แสดงรายละเอียดรูปภาพเปรียบเทียบ",
+    hideCompareDetails: "ซ่อนรายละเอียดรูปภาพเปรียบเทียบ",
+    filterDateLabel: "📅 เลือกช่วงเวลาดูย้อนหลัง",
+    allDates: "📅 ทั้งหมด",
+    todayOnly: "📅 วันนี้",
+    submittersAndCompact: "รายชื่อผู้ส่งรายงาน & รูปภาพแบบย่อ",
+    submittersAndCompactSub: "รายชื่อพนักงานผู้ส่ง พร้อมแสดงภาพเปรียบเทียบ Before/After แบบย่อล่าสุดของแต่ละคน",
+    noSubmittersToday: "ยังไม่มีผู้ส่งรายงานในวันนี้",
+    noReportsHistory: "ยังไม่มีรายงานในประวัติ",
+    historySub: "ตรวจสอบข้อมูลการรายงาน Before & After ย้อนหลังทั้งหมด",
+    timeBefore: "ก่อนกวาดถู",
+    timeAfter: "หลังกวาดถู",
     confirmDelete: "ยืนยันการลบรายงานนี้?",
     deleteSuccess: "ลบรายงานสำเร็จ",
     errorRequired: "กรุณากรอกข้อมูลและอัปโหลดรูปให้ครบถ้วน",
     langTh: "ไทย",
     langEn: "English",
-    langMy: "မြန်မာ",
-    imageQualityTitle: "⚙️ คุณภาพและขนาดรูปภาพ",
-    imageQualityDesc: "ปรับความละเอียดและการบีบอัดรูปภาพให้เหมาะสมกับการเชื่อมต่ออินเทอร์เน็ตและพื้นที่เก็บข้อมูล",
-    qualityEco: "ประหยัดเน็ต / โหลดเร็ว (720px, เบาพิเศษ)",
-    qualityStandard: "มาตรฐาน (1024px, แนะนำ)",
-    qualityHigh: "ความละเอียดสูง (1280px, คมชัดพิเศษ)"
+    langMy: "မြန်မာ"
   },
   en: {
     title: "Cleaning Reporting System",
@@ -153,12 +148,7 @@ const T = {
     errorRequired: "Please complete all fields and upload both photos",
     langTh: "ไทย",
     langEn: "English",
-    langMy: "မြန်မာ",
-    imageQualityTitle: "⚙️ Image Quality & Size Settings",
-    imageQualityDesc: "Adjust resolution and compression to fit your internet speed and storage preference",
-    qualityEco: "Eco / Fast (720px, Ultra Lightweight)",
-    qualityStandard: "Standard (1024px, Recommended)",
-    qualityHigh: "High Quality (1280px, HD Clear Detail)"
+    langMy: "မြန်မာ"
   },
   my: {
     title: "သန့်ရှင်းရေး အစီရင်ခံစနစ်",
@@ -214,17 +204,12 @@ const T = {
     historySub: "ယခင် Before & After အစီရင်ခံစာမှတ်တမ်းအားလုံးကို စစ်ဆေးပါ",
     timeBefore: "သန့်ရှင်းရေးမလုပ်မီ",
     timeAfter: "သန့်ရှင်းရေးလုပ်ပြီးနောက်",
-    confirmDelete: "ဤအစီရင်ခံစာကို ဖျက်ရန် သေချာပါသလား?",
+    confirmDelete: "ဤအစီရင်ခံစာကို ဖျက်ရန် သေฉာပါသလား?",
     deleteSuccess: "အစီရင်ခံစာ ဖျက်သိမ်းခြင်း အောင်မြင်ပါသည်",
     errorRequired: "ကျေးဇူးပြု၍ အချက်အလက်များပြည့်စုံစွာဖြည့်စွက်ပြီး ဓာတ်ပုံနှစ်ပုံစလုံးကို တင်ပါ",
     langTh: "ไทย",
     langEn: "English",
-    langMy: "မြန်မာ",
-    imageQualityTitle: "⚙️ ပုံရိပ်အရည်အသွေးနှင့် အရွယ်အစား သတ်မှတ်ချက်",
-    imageQualityDesc: "ကွန်ရက်အမြန်နှုန်းနှင့် သိမ်းဆည်းရန်နေရာအတွက် ပုံရိပ်ကြည်လင်ပြတ်သားမှုကို ချိန်ညှိပါ",
-    qualityEco: "ဒေတာချွေတာရန် (720px၊ အလွန်ပေါ့ပါးသည်)",
-    qualityStandard: "စံနှုန်း (1024px၊ အကြံပြုချက်)",
-    qualityHigh: "အရည်အသွေးမြင့် (1280px၊ ကြည်လင်ပြတ်သားမှု ကောင်းမွန်သည်)"
+    langMy: "မြန်မာ"
   }
 };
 
@@ -341,16 +326,6 @@ export default function App() {
   const changeLanguage = (lang: "th" | "en" | "my") => {
     setLanguage(lang);
     localStorage.setItem("preferred_lang", lang);
-  };
-
-  // Image Quality State (eco, standard, high)
-  const [imageQuality, setImageQuality] = useState<"eco" | "standard" | "high">(() => {
-    return (localStorage.getItem("preferred_quality") as "eco" | "standard" | "high") || "standard";
-  });
-
-  const changeImageQuality = (quality: "eco" | "standard" | "high") => {
-    setImageQuality(quality);
-    localStorage.setItem("preferred_quality", quality);
   };
   
   // Settings Form
@@ -556,17 +531,8 @@ export default function App() {
             return;
           }
 
-          // Set dynamic dimensions and compression based on user selected quality
-          let maxDim = 1024;
-          let jpegQuality = 0.7;
-          if (imageQuality === "eco") {
-            maxDim = 720;
-            jpegQuality = 0.55;
-          } else if (imageQuality === "high") {
-            maxDim = 1280;
-            jpegQuality = 0.85;
-          }
-
+          // Optimized maximum size (800px width/height is the gold standard for high-performance mobile and web review)
+          const maxDim = 800;
           let width = img.width;
           let height = img.height;
           if (width > maxDim || height > maxDim) {
@@ -613,8 +579,8 @@ export default function App() {
           ctx.textBaseline = "middle";
           ctx.fillText(bannerText, paddingX, height - bannerHeight / 2 + Math.round(fontSize * 0.08));
 
-          // Export as JPEG with the selected compression quality
-          const resultUrl = canvas.toDataURL("image/jpeg", jpegQuality);
+          // Export as highly-compressed JPEG (0.7 quality) to minimize base64 payload size
+          const resultUrl = canvas.toDataURL("image/jpeg", 0.7);
           resolve({ dataUrl: resultUrl, timeStr });
         };
         img.onerror = () => reject("Failed to load image");
@@ -1477,50 +1443,6 @@ export default function App() {
                             </option>
                           ))}
                         </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      {/* Category selector */}
-                      <div className="w-full">
-                        <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
-                          <Grid className="h-4.5 w-4.5 text-blue-500" />
-                          {T[language].selectCategory}
-                        </label>
-                        <select
-                          value={selectedCategory}
-                          onChange={(e) => setSelectedCategory(e.target.value)}
-                          className="w-full text-sm px-4 py-3 border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 focus:bg-white rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-bold text-slate-800"
-                          required
-                        >
-                          {CATEGORIES.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {CATEGORY_TRANSLATIONS[cat]?.[language] || cat}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      {/* Image Quality selector */}
-                      <div className="w-full">
-                        <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
-                          <Sparkles className="h-4.5 w-4.5 text-blue-500" />
-                          {T[language].imageQualityTitle}
-                        </label>
-                        <select
-                          value={imageQuality}
-                          onChange={(e) => changeImageQuality(e.target.value as "eco" | "standard" | "high")}
-                          className="w-full text-sm px-4 py-3 border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 focus:bg-white rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-bold text-slate-800"
-                        >
-                          <option value="eco">🟢 {T[language].qualityEco}</option>
-                          <option value="standard">🔵 {T[language].qualityStandard}</option>
-                          <option value="high">🟣 {T[language].qualityHigh}</option>
-                        </select>
-                        <span className="text-[11px] text-slate-500 font-medium block mt-1.5">
-                          {T[language].imageQualityDesc}
-                        </span>
                       </div>
                     </div>
 
