@@ -1,0 +1,39 @@
+{
+  "submitters": [
+    "สมชาย รักสะอาด",
+    "สมหญิง ปัดกวาด",
+    "วิชัย เช็ดถู",
+    "อนงค์ จัดระเบียบ",
+    "เกียรติศักดิ์ เงาวับ"
+  ],
+  "googleSheetUrl": "",
+  "reports": [
+    {
+      "id": "1783142637642",
+      "submitter": "สมชาย รักสะอาด",
+      "area": "ห้องน้ำ (Restroom)",
+      "beforeImage": "/uploads/before_1783142637642.jpg",
+      "afterImage": "/uploads/after_1783142637642.jpg",
+      "timestamp": "4 ก.ค. 2569 12:23:56",
+      "date": "2026-07-04",
+      "points": 10
+    },
+    {
+      "id": "1783145641607",
+      "submitter": "สมชาย รักสะอาด",
+      "area": "ห้องน้ำ (Restroom)",
+      "beforeImage": "/uploads/before_1783145641607.jpg",
+      "afterImage": "/uploads/after_1783145641607.jpg",
+      "timestamp": "4 ก.ค. 2569 13:13:59",
+      "date": "2026-07-04",
+      "points": 10
+    }
+  ],
+  "streakBonusWinners": {
+    "2026-07-04": {
+      "winner": "สมชาย รักสะอาด",
+      "count": 2,
+      "bonus": 50
+    }
+  }
+}

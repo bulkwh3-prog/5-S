@@ -9,6 +9,46 @@ import { HistoryViewer } from "./components/HistoryViewer";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CelebrationPopup } from "./components/CelebrationPopup";
 
+// Safe fetch helper to handle non-JSON responses gracefully
+async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options);
+  
+  const contentType = response.headers.get("content-type");
+  const isJson = contentType && contentType.includes("application/json");
+
+  if (!response.ok) {
+    let errorMessage = `เซิร์ฟเวอร์ตอบสนองด้วยสถานะข้อผิดพลาด (สถานะ: ${response.status})`;
+    if (isJson) {
+      try {
+        const errData = await response.json();
+        errorMessage = errData.error || errorMessage;
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      try {
+        const text = await response.text();
+        if (text && text.length < 150 && !text.includes("<!DOCTYPE html>")) {
+          errorMessage = text;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
+  if (!isJson) {
+    throw new Error("เซิร์ฟเวอร์ส่งคืนข้อมูลที่ไม่ใช่ JSON (กรุณารีเฟรชหน้าต่างหรือลองเชื่อมต่อใหม่อีกครั้ง)");
+  }
+
+  try {
+    return await response.json() as T;
+  } catch (e: any) {
+    throw new Error("รูปแบบข้อมูล JSON ไม่ถูกต้อง: " + (e.message || "ข้อผิดพลาด"));
+  }
+}
+
 export default function App() {
   const [dbState, setDbState] = useState<DatabaseState | null>(null);
   const [activeTab, setActiveTab] = useState<"report" | "dashboard" | "history" | "settings">("report");
@@ -29,20 +69,15 @@ export default function App() {
   // Fetch initial data
   const fetchData = async () => {
     try {
-      const res = await fetch("/api/data");
-      if (res.ok) {
-        const data: DatabaseState = await res.json();
-        setDbState(data);
-        setErrorMsg(null);
-        
-        // Auto-select first submitter if available
-        if (data.submitters.length > 0 && !selectedSubmitter) {
-          setSelectedSubmitter(data.submitters[0]);
-        }
-      } else {
-        throw new Error("เซิร์ฟเวอร์ตอบสนองด้วยสถานะข้อผิดพลาด");
+      const data = await safeFetchJson<DatabaseState>("/api/data");
+      setDbState(data);
+      setErrorMsg(null);
+      
+      // Auto-select first submitter if available
+      if (data.submitters.length > 0 && !selectedSubmitter) {
+        setSelectedSubmitter(data.submitters[0]);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error fetching state:", e);
       // Fallback local mock state so the app doesn't hang forever in spinning state
       const localFallback: DatabaseState = {
@@ -116,18 +151,12 @@ export default function App() {
     };
 
     try {
-      const response = await fetch("/api/reports", {
+      const result = await safeFetchJson<{ success: boolean; report: Report; db: DatabaseState }>("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "เกิดข้อผิดพลาดในการส่งข้อมูลรายงาน");
-      }
-
-      const result = await response.json();
       setDbState(result.db);
       
       // Trigger success popup
@@ -148,44 +177,29 @@ export default function App() {
 
   const handleDeleteReport = async (id: string) => {
     try {
-      const response = await fetch(`/api/reports/${id}`, {
+      const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>(`/api/reports/${id}`, {
         method: "DELETE"
       });
-      if (response.ok) {
-        const result = await response.json();
-        setDbState(result.db);
-      } else {
-        const err = await response.json();
-        alert(err.error || "ไม่สามารถลบรายการได้");
-      }
-    } catch (e) {
+      setDbState(result.db);
+    } catch (e: any) {
       console.error("Error deleting report:", e);
+      alert(e.message || "ไม่สามารถลบรายการได้");
     }
   };
 
   const handleSaveSettings = async (settings: { submitters: string[]; googleSheetUrl: string }) => {
-    const response = await fetch("/api/settings", {
+    const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || "ล้มเหลวในการบันทึกการตั้งค่า");
-    }
-    const result = await response.json();
     setDbState(result.db);
   };
 
   const handleForceSync = async () => {
-    const response = await fetch("/api/sync", {
+    const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>("/api/sync", {
       method: "POST"
     });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || "ล้มเหลวในการซิงก์ข้อมูล");
-    }
-    const result = await response.json();
     setDbState(result.db);
   };
 

@@ -53,6 +53,21 @@ const initialDb: Database = {
   streakBonusWinners: {}
 };
 
+// Helper to get Thai local date string (YYYY-MM-DD) in Asia/Bangkok timezone from millisecond timestamp
+function getThaiDateStringFromTimestamp(ts: number): string {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  const parts = formatter.formatToParts(new Date(ts));
+  const year = parts.find(p => p.type === "year")?.value || "";
+  const month = parts.find(p => p.type === "month")?.value || "";
+  const day = parts.find(p => p.type === "day")?.value || "";
+  return `${year}-${month}-${day}`;
+}
+
 // Helper to read DB
 function readDb(): Database {
   if (!fs.existsSync(DB_PATH)) {
@@ -62,13 +77,63 @@ function readDb(): Database {
   try {
     const data = fs.readFileSync(DB_PATH, "utf-8");
     const parsed = JSON.parse(data);
-    // Ensure all keys exist
-    return {
+    
+    const reports = parsed.reports || [];
+    let migrated = false;
+
+    // Migrate report dates if they are in Thai format
+    reports.forEach((report: any) => {
+      if (!report.date || !/^\d{4}-\d{2}-\d{2}$/.test(report.date)) {
+        const ts = Number(report.id);
+        if (!isNaN(ts)) {
+          report.date = getThaiDateStringFromTimestamp(ts);
+          migrated = true;
+        } else {
+          report.date = getThaiDateStringFromTimestamp(Date.now());
+          migrated = true;
+        }
+      }
+    });
+
+    const streakBonusWinners: Record<string, any> = {};
+    if (parsed.streakBonusWinners) {
+      Object.entries(parsed.streakBonusWinners).forEach(([date, winner]: [string, any]) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          // Find matching report to recover the correct ISO date
+          const matchingReport = reports.find((r: any) => {
+            const ts = Number(r.id);
+            if (!isNaN(ts)) {
+              const oldDatePart = r.timestamp ? r.timestamp.substring(0, 10) : "";
+              return oldDatePart.startsWith(date.substring(0, 5));
+            }
+            return false;
+          });
+          if (matchingReport) {
+            streakBonusWinners[matchingReport.date] = winner;
+            migrated = true;
+          } else {
+            const todayIso = getThaiDateStringFromTimestamp(Date.now());
+            streakBonusWinners[todayIso] = winner;
+            migrated = true;
+          }
+        } else {
+          streakBonusWinners[date] = winner;
+        }
+      });
+    }
+
+    const db: Database = {
       submitters: parsed.submitters || DEFAULT_SUBMITTERS,
       googleSheetUrl: parsed.googleSheetUrl || "",
-      reports: parsed.reports || [],
-      streakBonusWinners: parsed.streakBonusWinners || {}
+      reports: reports,
+      streakBonusWinners: streakBonusWinners
     };
+
+    if (migrated) {
+      writeDb(db);
+    }
+
+    return db;
   } catch (e) {
     console.error("Error reading database file, resetting to default.", e);
     return initialDb;
@@ -239,8 +304,8 @@ app.post("/api/reports", (req, res) => {
     const beforeImageUrl = saveBase64Image(beforeImage, "before", id);
     const afterImageUrl = saveBase64Image(afterImage, "after", id);
 
-    // Extract date (YYYY-MM-DD) from timestamp
-    const reportDate = timestamp ? timestamp.substring(0, 10) : new Date().toISOString().substring(0, 10);
+    // Calculate correct ISO date (YYYY-MM-DD) based on Asia/Bangkok timezone
+    const reportDate = getThaiDateStringFromTimestamp(Number(id));
 
     const newReport: Report = {
       id,
