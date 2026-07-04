@@ -33,6 +33,7 @@ export default function App() {
       if (res.ok) {
         const data: DatabaseState = await res.json();
         setDbState(data);
+        setErrorMsg(null);
         
         // Auto-select first submitter if available
         if (data.submitters.length > 0 && !selectedSubmitter) {
