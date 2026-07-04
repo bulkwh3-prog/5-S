@@ -317,9 +317,21 @@ export default function App() {
                   </div>
 
                   {errorMsg && (
-                    <div className="bg-red-50 border border-red-100 text-red-800 text-xs font-bold p-4 rounded-2xl flex items-center gap-2 mb-6">
-                      <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                      <span>{errorMsg}</span>
+                    <div className="bg-red-50 border border-red-100 text-red-800 text-xs font-bold p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                        <span>{errorMsg}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setErrorMsg(null);
+                          fetchData();
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-black transition active:scale-95 cursor-pointer self-start sm:self-auto shrink-0 shadow-sm"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> ลองเชื่อมต่ออีกครั้ง
+                      </button>
                     </div>
                   )}
 
