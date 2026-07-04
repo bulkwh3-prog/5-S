@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Calendar, Award, CheckCircle, Search, Clock, MapPin, User, FileX, Download } from "lucide-react";
+import { Calendar, Award, CheckCircle, Search, Clock, MapPin, User, FileX, Download, RefreshCw } from "lucide-react";
 import { DatabaseState, Report } from "../types";
 
 interface HistoryViewerProps {
@@ -15,6 +15,8 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
     uniqueDates[0] || new Date().toISOString().substring(0, 10)
   );
 
+  const [mergingId, setMergingId] = useState<string | null>(null);
+
   // Filter reports of the selected date
   const reportsOnDate = dbState.reports.filter((r) => r.date === selectedDate);
   
@@ -25,13 +27,112 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
   const targetCount = 15;
   const percentage = Math.min(100, Math.round((reportsOnDate.length / targetCount) * 100));
 
-  const handleDownload = (imageUrl: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = imageUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleCombineAndDownload = async (report: Report) => {
+    if (mergingId) return;
+    setMergingId(report.id);
+    try {
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("การโหลดรูปภาพใช้เวลานานเกินไป (8 วินาที)"));
+          }, 8000);
+
+          const img = new Image();
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve(img);
+          };
+          img.onerror = () => {
+            if (img.crossOrigin === "anonymous") {
+              // Retry without crossOrigin
+              const retryImg = new Image();
+              retryImg.onload = () => {
+                clearTimeout(timeout);
+                resolve(retryImg);
+              };
+              retryImg.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error("ล้มเหลวในการโหลดรูปภาพ"));
+              };
+              retryImg.src = src;
+            } else {
+              clearTimeout(timeout);
+              reject(new Error("ล้มเหลวในการโหลดรูปภาพ"));
+            }
+          };
+          img.crossOrigin = "anonymous";
+          img.src = src;
+        });
+      };
+
+      const [bImg, aImg] = await Promise.all([
+        loadImage(report.beforeImage),
+        loadImage(report.afterImage)
+      ]);
+
+      const targetHeight = 600;
+      const bWidth = (bImg.width / bImg.height) * targetHeight;
+      const aWidth = (aImg.width / aImg.height) * targetHeight;
+
+      const canvas = document.createElement("canvas");
+      const totalWidth = bWidth + aWidth;
+      const headerHeight = 90;
+      
+      canvas.width = totalWidth;
+      canvas.height = targetHeight + headerHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not get 2D context");
+
+      // Draw background (elegant clean dark slate background)
+      ctx.fillStyle = "#1e293b"; // slate-800
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Title
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 24px 'Inter', sans-serif";
+      ctx.fillText(`รายงานการทำความสะอาด: ${report.area.split(" (")[0]}`, 30, 42);
+
+      // Subtitle
+      ctx.fillStyle = "#94a3b8"; // slate-400
+      ctx.font = "16px 'Inter', sans-serif";
+      ctx.fillText(`ผู้ส่งรายงาน: ${report.submitter}   |   วันเวลา: ${report.timestamp}`, 30, 68);
+
+      // Draw Images
+      ctx.drawImage(bImg, 0, headerHeight, bWidth, targetHeight);
+      ctx.drawImage(aImg, bWidth, headerHeight, aWidth, targetHeight);
+
+      // Rose-500 badge for BEFORE
+      ctx.fillStyle = "rgba(244, 63, 94, 0.95)";
+      ctx.fillRect(15, headerHeight + 15, 150, 42);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px 'Inter', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("BEFORE (ก่อนทำ)", 15 + 75, headerHeight + 15 + 21);
+
+      // Cyan-500 badge for AFTER
+      ctx.fillStyle = "rgba(6, 182, 212, 0.95)";
+      ctx.fillRect(bWidth + 15, headerHeight + 15, 150, 42);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px 'Inter', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("AFTER (หลังทำ)", bWidth + 15 + 75, headerHeight + 15 + 21);
+
+      const mergedDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      const link = document.createElement("a");
+      link.href = mergedDataUrl;
+      link.download = `combined_${report.submitter}_${report.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      console.error("Error merging images:", err);
+      alert(err.message || "ไม่สามารถรวมรูปภาพได้ในขณะนี้");
+    } finally {
+      setMergingId(null);
+    }
   };
 
   return (
@@ -176,16 +277,19 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
                 {/* Download links */}
                 <div className="flex gap-2 border-t border-slate-100 pt-3">
                   <button
-                    onClick={() => handleDownload(report.beforeImage, `before_${report.id}.jpg`)}
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 text-slate-700 py-1.5 px-2.5 rounded-xl text-[11px] transition font-bold cursor-pointer border border-slate-200"
+                    onClick={() => handleCombineAndDownload(report)}
+                    disabled={mergingId === report.id}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:opacity-95 text-white font-black py-2 px-3 rounded-xl text-xs transition cursor-pointer shadow-xs disabled:opacity-50"
                   >
-                    <Download className="w-3 h-3" /> ก่อนทำ JPG
-                  </button>
-                  <button
-                    onClick={() => handleDownload(report.afterImage, `after_${report.id}.jpg`)}
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1.5 px-2.5 rounded-xl text-[11px] transition font-bold cursor-pointer border border-indigo-100/30"
-                  >
-                    <Download className="w-3 h-3" /> หลังทำ JPG
+                    {mergingId === report.id ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังประมวลผล...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" /> รวมเป็นรูปเดียว
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

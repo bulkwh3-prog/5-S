@@ -26,10 +26,15 @@ export function UploadBox({ label, type, imageUrl, onImageStamped }: UploadBoxPr
 
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("การประมวลผลรูปภาพใช้เวลานานเกินไป (8 วินาที)"));
+        }, 8000);
+
         const reader = new FileReader();
         reader.onload = (event) => {
           const img = new Image();
           img.onload = () => {
+            clearTimeout(timeout);
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
             if (!ctx) {
@@ -100,10 +105,16 @@ export function UploadBox({ label, type, imageUrl, onImageStamped }: UploadBoxPr
             // Output JPEG data URL
             resolve(canvas.toDataURL("image/jpeg", 0.85));
           };
-          img.onerror = () => reject(new Error("ไม่สามารถโหลดรูปภาพนี้ได้"));
+          img.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error("ไม่สามารถโหลดรูปภาพนี้ได้"));
+          };
           img.src = event.target?.result as string;
         };
-        reader.onerror = () => reject(new Error("เกิดข้อผิดพลาดในการอ่านไฟล์"));
+        reader.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error("เกิดข้อผิดพลาดในการอ่านไฟล์"));
+        };
         reader.readAsDataURL(file);
       });
 

@@ -54,25 +54,44 @@ export function Dashboard({ dbState, onDeleteReport }: DashboardProps) {
     if (mergingId) return;
     setMergingId(report.id);
     try {
-      const imgBefore = new Image();
-      const imgAfter = new Image();
-      
-      imgBefore.crossOrigin = "anonymous";
-      imgAfter.crossOrigin = "anonymous";
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise<HTMLImageElement>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("การโหลดรูปภาพใช้เวลานานเกินไป (8 วินาที)"));
+          }, 8000);
 
-      const loadBefore = new Promise<HTMLImageElement>((resolve, reject) => {
-        imgBefore.onload = () => resolve(imgBefore);
-        imgBefore.onerror = () => reject(new Error("Failed to load before image"));
-        imgBefore.src = report.beforeImage;
-      });
+          const img = new Image();
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve(img);
+          };
+          img.onerror = () => {
+            if (img.crossOrigin === "anonymous") {
+              // Retry without crossOrigin
+              const retryImg = new Image();
+              retryImg.onload = () => {
+                clearTimeout(timeout);
+                resolve(retryImg);
+              };
+              retryImg.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error("ล้มเหลวในการโหลดรูปภาพ"));
+              };
+              retryImg.src = src;
+            } else {
+              clearTimeout(timeout);
+              reject(new Error("ล้มเหลวในการโหลดรูปภาพ"));
+            }
+          };
+          img.crossOrigin = "anonymous";
+          img.src = src;
+        });
+      };
 
-      const loadAfter = new Promise<HTMLImageElement>((resolve, reject) => {
-        imgAfter.onload = () => resolve(imgAfter);
-        imgAfter.onerror = () => reject(new Error("Failed to load after image"));
-        imgAfter.src = report.afterImage;
-      });
-
-      const [bImg, aImg] = await Promise.all([loadBefore, loadAfter]);
+      const [bImg, aImg] = await Promise.all([
+        loadImage(report.beforeImage),
+        loadImage(report.afterImage)
+      ]);
 
       const targetHeight = 600;
       const bWidth = (bImg.width / bImg.height) * targetHeight;
@@ -131,8 +150,9 @@ export function Dashboard({ dbState, onDeleteReport }: DashboardProps) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error merging images:", err);
+      alert(err.message || "ไม่สามารถรวมรูปภาพได้ในขณะนี้");
     } finally {
       setMergingId(null);
     }
@@ -303,29 +323,14 @@ export function Dashboard({ dbState, onDeleteReport }: DashboardProps) {
                   </div>
                 </div>
 
-                {/* Footer Actions (Delete, Download Both & Combined Image) */}
+                {/* Footer Actions (Delete & Combined Image) */}
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-1">
-                  <div className="flex flex-col sm:flex-row gap-2 w-full">
-                    <div className="grid grid-cols-2 gap-2 flex-1">
-                      <button
-                        onClick={() => handleDownload(report.beforeImage, `before_${report.id}.jpg`)}
-                        className="inline-flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-2 px-1 rounded-xl text-xs transition border border-slate-200 cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Before JPG
-                      </button>
-                      <button
-                        onClick={() => handleDownload(report.afterImage, `after_${report.id}.jpg`)}
-                        className="inline-flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 px-1 rounded-xl text-xs transition border border-indigo-100 cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" /> After JPG
-                      </button>
-                    </div>
-
+                  <div className="flex gap-2 w-full">
                     <button
                       id="combine-images-btn"
                       onClick={() => handleCombineAndDownload(report)}
                       disabled={mergingId === report.id}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:opacity-95 text-white font-black py-2 px-3 rounded-xl text-xs transition cursor-pointer shadow-xs disabled:opacity-50"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:opacity-95 text-white font-black py-2.5 px-3 rounded-xl text-xs transition cursor-pointer shadow-xs disabled:opacity-50"
                       title="รวมรูปก่อนและหลังทำความสะอาดเป็นรูปเดียวกัน"
                     >
                       {mergingId === report.id ? (
@@ -345,7 +350,7 @@ export function Dashboard({ dbState, onDeleteReport }: DashboardProps) {
                           onDeleteReport(report.id);
                         }
                       }}
-                      className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition border border-red-100 self-stretch flex items-center justify-center cursor-pointer shrink-0"
+                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition border border-red-100 flex items-center justify-center cursor-pointer shrink-0"
                       title="ลบรายงานการทำความสะอาดนี้"
                     >
                       <Trash2 className="w-4 h-4" />

@@ -38,9 +38,26 @@ export default function App() {
         if (data.submitters.length > 0 && !selectedSubmitter) {
           setSelectedSubmitter(data.submitters[0]);
         }
+      } else {
+        throw new Error("เซิร์ฟเวอร์ตอบสนองด้วยสถานะข้อผิดพลาด");
       }
     } catch (e) {
       console.error("Error fetching state:", e);
+      // Fallback local mock state so the app doesn't hang forever in spinning state
+      const localFallback: DatabaseState = {
+        submitters: [
+          "สมชาย รักสะอาด",
+          "สมหญิง ปัดกวาด",
+          "วิชัย เช็ดถู",
+          "อนงค์ จัดระเบียบ",
+          "เกียรติศักดิ์ เงาวับ"
+        ],
+        googleSheetUrl: "",
+        reports: [],
+        streakBonusWinners: {}
+      };
+      setDbState(localFallback);
+      setErrorMsg("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังสลับใช้งานโหมดออฟไลน์ชั่วคราว");
     }
   };
 
