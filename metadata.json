@@ -1,0 +1,6 @@
+{
+  "name": "Cleaning Report System",
+  "description": "ระบบรายงานการทำความสะอาดพร้อมระบบแสตมป์เวลาบนรูปภาพ สถิติแดชบอร์ดแยกตามพื้นที่ และการดึงรายชื่อผู้ใช้งานจาก Google Sheets สะดวกรวดเร็ว",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
