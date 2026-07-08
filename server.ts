@@ -289,6 +289,21 @@ function saveBase64Image(base64Data: string, prefix: string, id: string): string
   return `/uploads/${filename}`;
 }
 
+// API: Upload base64 image and return public URL
+app.post("/api/upload", (req, res) => {
+  try {
+    const { image, type } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: "กรุณาส่งรูปภาพในรูปแบบ Base64" });
+    }
+    const id = Date.now().toString() + "_" + Math.floor(Math.random() * 1000);
+    const imageUrl = saveBase64Image(image, type || "upload", id);
+    res.json({ success: true, url: imageUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // API: Submit a cleaning report
 app.post("/api/reports", (req, res) => {
   try {

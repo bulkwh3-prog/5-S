@@ -18,26 +18,42 @@ provider.addScope("https://www.googleapis.com/auth/drive.file");
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
 
-// Handle session cache for accessToken (we can persist token in memory)
+/**
+ * Upload base64 image to the local server as fallback
+ */
+export async function uploadImageToServer(base64Data: string, type: string): Promise<string> {
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ image: base64Data, type }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`เซิร์ฟเวอร์ตอบกลับด้วยข้อผิดพลาด: ${errText}`);
+  }
+
+  const data = await response.json();
+  return window.location.origin + data.url;
+}
+
+// Handle in-memory cache for accessToken as mandated by the security guidelines
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      // Check if we have token in sessionStorage for quick reload within session,
-      // as we are permitted to cache within session or memory.
-      const savedToken = sessionStorage.getItem("google_oauth_access_token");
-      if (savedToken) {
-        cachedAccessToken = savedToken;
-        if (onAuthSuccess) onAuthSuccess(user, savedToken);
-      } else {
-        // If logged in but no token, we can ask user to sign in again to get token
+      if (cachedAccessToken) {
+        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
+      } else if (!isSigningIn) {
+        cachedAccessToken = null;
         if (onAuthFailure) onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
-      sessionStorage.removeItem("google_oauth_access_token");
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -53,7 +69,6 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
-    sessionStorage.setItem("google_oauth_access_token", cachedAccessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error("Sign in error:", error);
@@ -66,15 +81,15 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
-  sessionStorage.removeItem("google_oauth_access_token");
 };
 
 export const getAccessToken = (): string | null => {
-  return cachedAccessToken || sessionStorage.getItem("google_oauth_access_token");
+  return cachedAccessToken;
 };
 
 /**
  * Upload base64 image to Google Drive, make it readable by "anyone", and return its viewable URL.
+ * Falls back to local server upload seamlessly if Drive fails/has permission issues.
  */
 export async function uploadImageToDrive(
   base64Data: string,
@@ -153,8 +168,14 @@ export async function uploadImageToDrive(
     // Return the viewable URL
     return `https://docs.google.com/uc?export=view&id=${fileId}`;
   } catch (error: any) {
-    console.error("uploadImageToDrive error:", error);
-    throw new Error(`ไม่สามารถอัปโหลดรูปภาพไปยัง Google Drive ได้: ${error.message}`);
+    console.warn("Google Drive upload failed, trying server-side upload fallback...", error);
+    try {
+      const type = filename.includes("before") ? "before" : "after";
+      return await uploadImageToServer(base64Data, type);
+    } catch (fallbackError: any) {
+      console.error("Fallback upload also failed:", fallbackError);
+      throw new Error(`ไม่สามารถอัปโหลดรูปภาพได้: ${fallbackError.message}`);
+    }
   }
 }
 
