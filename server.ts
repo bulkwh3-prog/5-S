@@ -48,7 +48,7 @@ const DEFAULT_SUBMITTERS = [
 
 const initialDb: Database = {
   submitters: DEFAULT_SUBMITTERS,
-  googleSheetUrl: "",
+  googleSheetUrl: "https://docs.google.com/spreadsheets/d/1FH1qOHjwRvhkSQtR4KYZ930Z97_K2AVloiJCaqs7ArE/edit?gid=0#gid=0",
   reports: [],
   streakBonusWinners: {}
 };

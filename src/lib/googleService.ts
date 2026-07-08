@@ -266,6 +266,123 @@ export async function createNewSpreadsheet(accessToken: string): Promise<string>
 }
 
 /**
+ * Ensures that the spreadsheet has 'Reports' and 'Submitters' tabs with the correct headers.
+ */
+export async function ensureSheetSchema(spreadsheetId: string, accessToken: string): Promise<void> {
+  try {
+    // 1. Get spreadsheet metadata to check existing sheet titles
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to get spreadsheet metadata: ${errText}`);
+    }
+
+    const data = await response.json();
+    const sheets = data.sheets || [];
+    const existingTitles = sheets.map((s: any) => s.properties.title);
+
+    const requests: any[] = [];
+    const sheetsToAdd: string[] = [];
+
+    if (!existingTitles.includes("Reports")) {
+      requests.push({
+        addSheet: {
+          properties: {
+            title: "Reports",
+            gridProperties: { frozenRowCount: 1 },
+          },
+        },
+      });
+      sheetsToAdd.push("Reports");
+    }
+
+    if (!existingTitles.includes("Submitters")) {
+      requests.push({
+        addSheet: {
+          properties: {
+            title: "Submitters",
+            gridProperties: { frozenRowCount: 1 },
+          },
+        },
+      });
+      sheetsToAdd.push("Submitters");
+    }
+
+    // 2. Add missing sheets if any
+    if (requests.length > 0) {
+      const updateResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ requests }),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errText = await updateResponse.text();
+        throw new Error(`Failed to add missing sheets: ${errText}`);
+      }
+
+      // 3. Write default headers and values to new sheets
+      const valueRanges: any[] = [];
+
+      if (sheetsToAdd.includes("Reports")) {
+        valueRanges.push({
+          range: "Reports!A1:H1",
+          values: [["ID", "Submitter", "Area", "Date", "Timestamp", "Points", "BeforeImage", "AfterImage"]],
+        });
+      }
+
+      if (sheetsToAdd.includes("Submitters")) {
+        valueRanges.push({
+          range: "Submitters!A1:A6",
+          values: [
+            ["Name"],
+            ["สมชาย รักสะอาด"],
+            ["สมหญิง ปัดกวาด"],
+            ["วิชัย เช็ดถู"],
+            ["อนงค์ จัดระเบียบ"],
+            ["เกียรติศักดิ์ เงาวับ"],
+          ],
+        });
+      }
+
+      if (valueRanges.length > 0) {
+        const writeResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate?valueInputOption=USER_ENTERED`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ data: valueRanges }),
+          }
+        );
+
+        if (!writeResponse.ok) {
+          const errText = await writeResponse.text();
+          throw new Error(`Failed to initialize sheet headers: ${errText}`);
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error("ensureSheetSchema error:", error);
+    throw new Error(`ไม่สามารถตรวจสอบสเปรดชีตได้: ${error.message}`);
+  }
+}
+
+/**
  * Fetch reports and submitters list from the spreadsheet.
  */
 export async function fetchSheetData(

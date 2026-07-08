@@ -6,7 +6,7 @@
     "อนงค์ จัดระเบียบ",
     "เกียรติศักดิ์ เงาวับ"
   ],
-  "googleSheetUrl": "",
+  "googleSheetUrl": "https://docs.google.com/spreadsheets/d/1FH1qOHjwRvhkSQtR4KYZ930Z97_K2AVloiJCaqs7ArE/edit?gid=0#gid=0",
   "reports": [
     {
       "id": "1783142637642",
@@ -27,12 +27,27 @@
       "timestamp": "4 ก.ค. 2569 13:13:59",
       "date": "2026-07-04",
       "points": 10
+    },
+    {
+      "id": "1783476494025",
+      "submitter": "สมชาย รักสะอาด",
+      "area": "ห้องน้ำ (Restroom)",
+      "beforeImage": "/uploads/before_1783476494025.jpg",
+      "afterImage": "/uploads/after_1783476494025.jpg",
+      "timestamp": "8 ก.ค. 2569 09:08:13",
+      "date": "2026-07-08",
+      "points": 10
     }
   ],
   "streakBonusWinners": {
     "2026-07-04": {
       "winner": "สมชาย รักสะอาด",
       "count": 2,
+      "bonus": 50
+    },
+    "2026-07-08": {
+      "winner": "สมชาย รักสะอาด",
+      "count": 1,
       "bonus": 50
     }
   }

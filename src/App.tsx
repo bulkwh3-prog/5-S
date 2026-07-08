@@ -20,6 +20,7 @@ import {
   appendReportToSheet,
   overwriteReportsInSheet,
   overwriteSubmittersInSheet,
+  ensureSheetSchema,
 } from "./lib/googleService";
 import { User } from "firebase/auth";
 import { computeStreakBonusWinners } from "./utils/streak";
@@ -71,7 +72,17 @@ export default function App() {
   // Google OAuth Sync States
   const [googleUser, setGoogleUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(localStorage.getItem("sparkle_spreadsheet_id"));
+  
+  const DEFAULT_SPREADSHEET_ID = "1FH1qOHjwRvhkSQtR4KYZ930Z97_K2AVloiJCaqs7ArE";
+  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(() => {
+    const saved = localStorage.getItem("sparkle_spreadsheet_id");
+    if (!saved) {
+      localStorage.setItem("sparkle_spreadsheet_id", DEFAULT_SPREADSHEET_ID);
+      return DEFAULT_SPREADSHEET_ID;
+    }
+    return saved;
+  });
+  
   const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
 
   // Form States
@@ -109,6 +120,8 @@ export default function App() {
         localStorage.setItem("sparkle_spreadsheet_id", sheetId);
         setSpreadsheetId(sheetId);
       }
+
+      await ensureSheetSchema(sheetId, token);
 
       const { reports, submitters } = await fetchSheetData(sheetId, token);
       const streakBonusWinners = computeStreakBonusWinners(reports);
