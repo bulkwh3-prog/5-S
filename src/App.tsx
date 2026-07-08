@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, ClipboardCheck, LayoutDashboard, Calendar, Settings2, ShieldCheck, Check, Send, Sparkle, AlertCircle, RefreshCw } from "lucide-react";
+import { Sparkles, ClipboardCheck, LayoutDashboard, Calendar, Settings2, ShieldCheck, Check, Send, Sparkle, AlertCircle, RefreshCw, Database, LogOut, Globe } from "lucide-react";
 import { motion } from "motion/react";
 import { DatabaseState, CLEANING_AREAS, Report } from "./types";
 import { UploadBox } from "./components/UploadBox";
@@ -8,6 +8,21 @@ import { Dashboard } from "./components/Dashboard";
 import { HistoryViewer } from "./components/HistoryViewer";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CelebrationPopup } from "./components/CelebrationPopup";
+import {
+  initAuth,
+  googleSignIn,
+  logout,
+  getAccessToken,
+  uploadImageToDrive,
+  findExistingSpreadsheet,
+  createNewSpreadsheet,
+  fetchSheetData,
+  appendReportToSheet,
+  overwriteReportsInSheet,
+  overwriteSubmittersInSheet,
+} from "./lib/googleService";
+import { User } from "firebase/auth";
+import { computeStreakBonusWinners } from "./utils/streak";
 
 // Safe fetch helper to handle non-JSON responses gracefully
 async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -53,6 +68,12 @@ export default function App() {
   const [dbState, setDbState] = useState<DatabaseState | null>(null);
   const [activeTab, setActiveTab] = useState<"report" | "dashboard" | "history" | "settings">("report");
   
+  // Google OAuth Sync States
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(localStorage.getItem("sparkle_spreadsheet_id"));
+  const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
+
   // Form States
   const [selectedSubmitter, setSelectedSubmitter] = useState<string>("");
   const [selectedArea, setSelectedArea] = useState<string>(CLEANING_AREAS[0]);
@@ -66,7 +87,54 @@ export default function App() {
   const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
   const [successSubmitter, setSuccessSubmitter] = useState("");
 
-  // Fetch initial data
+  // Helper to extract sheet ID
+  const extractSpreadsheetId = (url: string): string | null => {
+    const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : null;
+  };
+
+  // Sync with Google Sheets
+  const syncFromGoogle = async (token: string, currentSpreadsheetId: string | null) => {
+    setIsSyncingGoogle(true);
+    setErrorMsg(null);
+    try {
+      let sheetId = currentSpreadsheetId;
+      if (!sheetId) {
+        // Search Drive for existing sheet
+        sheetId = await findExistingSpreadsheet(token);
+        if (!sheetId) {
+          // If none exists, create a new one
+          sheetId = await createNewSpreadsheet(token);
+        }
+        localStorage.setItem("sparkle_spreadsheet_id", sheetId);
+        setSpreadsheetId(sheetId);
+      }
+
+      const { reports, submitters } = await fetchSheetData(sheetId, token);
+      const streakBonusWinners = computeStreakBonusWinners(reports);
+
+      setDbState({
+        submitters,
+        googleSheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+        reports,
+        streakBonusWinners,
+      });
+
+      // Auto-select first submitter if available
+      if (submitters.length > 0 && !selectedSubmitter) {
+        setSelectedSubmitter(submitters[0]);
+      }
+    } catch (err: any) {
+      console.error("Google Sync error:", err);
+      setErrorMsg("ไม่สามารถซิงก์ข้อมูลจาก Google Sheets ได้: " + err.message);
+      // Fallback
+      fetchData();
+    } finally {
+      setIsSyncingGoogle(false);
+    }
+  };
+
+  // Fetch initial data (local server fallback)
   const fetchData = async () => {
     try {
       const data = await safeFetchJson<DatabaseState>("/api/data");
@@ -97,9 +165,63 @@ export default function App() {
     }
   };
 
+  // Handle Sign-In
+  const handleGoogleSignIn = async () => {
+    try {
+      setErrorMsg(null);
+      const result = await googleSignIn();
+      if (result) {
+        setGoogleUser(result.user);
+        setAccessToken(result.accessToken);
+        await syncFromGoogle(result.accessToken, spreadsheetId);
+        setSuccessMsg("เชื่อมต่อบัญชี Google และเปิดระบบซิงก์เรียบร้อยแล้ว!");
+      }
+    } catch (err: any) {
+      console.error("Google login failed:", err);
+      const errorCode = err.code || "";
+      const errorMessage = err.message || "";
+      
+      if (errorCode === "auth/popup-closed-by-user" || errorMessage.includes("popup-closed-by-user")) {
+        setErrorMsg("คุณได้ปิดหน้าต่างลงชื่อเข้าใช้ (การเชื่อมต่อถูกยกเลิก)");
+      } else if (errorCode === "auth/popup-blocked" || errorMessage.includes("popup-blocked")) {
+        setErrorMsg("ป๊อปอัปถูกบล็อกโดยเบราว์เซอร์ของคุณ กรุณาอนุญาตให้เปิดป๊อปอัปสำหรับหน้านี้แล้วลองใหม่อีกครั้ง");
+      } else if (errorCode === "auth/cancelled-popup-request" || errorMessage.includes("cancelled-popup-request")) {
+        setErrorMsg("มีหน้าต่างเข้าสู่ระบบกำลังทำงานอยู่ กรุณารอสักครู่หรือรีเฟรชหน้าเว็บ");
+      } else {
+        setErrorMsg("เข้าสู่ระบบล้มเหลว: " + (err.message || err));
+      }
+    }
+  };
+
+  // Handle Sign-Out
+  const handleGoogleSignOut = async () => {
+    try {
+      await logout();
+      setGoogleUser(null);
+      setAccessToken(null);
+      setSpreadsheetId(null);
+      localStorage.removeItem("sparkle_spreadsheet_id");
+      setSuccessMsg("ออกจากระบบ Google เรียบร้อยแล้ว (สลับเป็นโหมดออฟไลน์)");
+      fetchData();
+    } catch (err: any) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    initAuth(
+      (user, token) => {
+        setGoogleUser(user);
+        setAccessToken(token);
+        syncFromGoogle(token, spreadsheetId);
+      },
+      () => {
+        setGoogleUser(null);
+        setAccessToken(null);
+        fetchData();
+      }
+    );
+  }, [spreadsheetId]);
 
   // Update selected submitter if submitters list updates
   useEffect(() => {
@@ -132,6 +254,7 @@ export default function App() {
     setSuccessMsg(null);
 
     const now = new Date();
+    const reportDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
     const localTimestamp = now.toLocaleDateString("th-TH", {
       year: "numeric",
       month: "short",
@@ -142,6 +265,49 @@ export default function App() {
       hour12: false
     });
 
+    // Handle Google Sheets persistent submission
+    if (googleUser && accessToken && spreadsheetId) {
+      try {
+        setSuccessMsg("กำลังอัปโหลดรูปภาพไปยัง Google Drive...");
+        const beforeUrl = await uploadImageToDrive(beforeImage, `before_${Date.now()}.jpg`, accessToken);
+        const afterUrl = await uploadImageToDrive(afterImage, `after_${Date.now()}.jpg`, accessToken);
+
+        setSuccessMsg("กำลังเพิ่มรายงานไปยัง Google Sheet...");
+        const newReport: Report = {
+          id: Date.now().toString(),
+          submitter: selectedSubmitter,
+          area: selectedArea,
+          beforeImage: beforeUrl,
+          afterImage: afterUrl,
+          timestamp: localTimestamp,
+          date: reportDate,
+          points: 10
+        };
+
+        await appendReportToSheet(spreadsheetId, newReport, accessToken);
+
+        // Trigger success popup
+        setSuccessSubmitter(selectedSubmitter);
+        setIsCelebrationOpen(true);
+
+        // Reset form
+        setBeforeImage(null);
+        setAfterImage(null);
+        setSelectedArea(CLEANING_AREAS[0]);
+        setSuccessMsg("ส่งข้อมูลรายงานทำความสะอาดและบันทึกลง Google Sheets สำเร็จ!");
+
+        // Sync again to fetch latest data
+        await syncFromGoogle(accessToken, spreadsheetId);
+      } catch (err: any) {
+        console.error("Google Submit failed:", err);
+        setErrorMsg(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลไปยัง Google Sheets");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Local / Express Backend fallback submission
     const body = {
       submitter: selectedSubmitter,
       area: selectedArea,
@@ -167,7 +333,7 @@ export default function App() {
       setBeforeImage(null);
       setAfterImage(null);
       setSelectedArea(CLEANING_AREAS[0]);
-      setSuccessMsg("ส่งข้อมูลรายงานทำความสะอาดเรียบร้อยแล้ว!");
+      setSuccessMsg("ส่งข้อมูลรายงานทำความสะอาดเรียบร้อยแล้ว! (จัดเก็บในระบบออฟไลน์/เซิร์ฟเวอร์ชั่วคราว)");
     } catch (err: any) {
       setErrorMsg(err.message || "เกิดข้อผิดพลาดทางเทคนิค");
     } finally {
@@ -176,6 +342,25 @@ export default function App() {
   };
 
   const handleDeleteReport = async (id: string) => {
+    const confirmed = window.confirm("คุณต้องการลบรายการรายงานนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้");
+    if (!confirmed) return;
+
+    if (googleUser && accessToken && spreadsheetId && dbState) {
+      setIsSyncingGoogle(true);
+      try {
+        const updatedReports = dbState.reports.filter(r => r.id !== id);
+        await overwriteReportsInSheet(spreadsheetId, updatedReports, accessToken);
+        setSuccessMsg("ลบรายงานออกจาก Google Sheet เรียบร้อยแล้ว!");
+        await syncFromGoogle(accessToken, spreadsheetId);
+      } catch (err: any) {
+        console.error("Google Delete failed:", err);
+        setErrorMsg("เกิดข้อผิดพลาดในการลบข้อมูลจาก Google Sheets: " + err.message);
+      } finally {
+        setIsSyncingGoogle(false);
+      }
+      return;
+    }
+
     try {
       const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>(`/api/reports/${id}`, {
         method: "DELETE"
@@ -188,6 +373,36 @@ export default function App() {
   };
 
   const handleSaveSettings = async (settings: { submitters: string[]; googleSheetUrl: string }) => {
+    // If logged in with Google, save to Google Sheet
+    if (googleUser && accessToken && spreadsheetId) {
+      setIsSyncingGoogle(true);
+      try {
+        if (settings.googleSheetUrl) {
+          // Paste external sheet ID
+          const parsedId = extractSpreadsheetId(settings.googleSheetUrl);
+          if (parsedId) {
+            localStorage.setItem("sparkle_spreadsheet_id", parsedId);
+            setSpreadsheetId(parsedId);
+            await syncFromGoogle(accessToken, parsedId);
+            setSuccessMsg("เปลี่ยนฐานข้อมูล Google Sheet สำเร็จ!");
+          } else {
+            throw new Error("ลิงก์ Google Sheet ไม่ถูกต้อง");
+          }
+        } else {
+          // Manual roster overwrite inside Google Sheet Submitters tab
+          await overwriteSubmittersInSheet(spreadsheetId, settings.submitters, accessToken);
+          setSuccessMsg("บันทึกรายชื่อผู้ส่งงานลง Google Sheet สำเร็จ!");
+          await syncFromGoogle(accessToken, spreadsheetId);
+        }
+      } catch (err: any) {
+        console.error("Google Settings update failed:", err);
+        setErrorMsg("ไม่สามารถอัปเดตการตั้งค่าไปยัง Google Sheets ได้: " + err.message);
+      } finally {
+        setIsSyncingGoogle(false);
+      }
+      return;
+    }
+
     const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -197,6 +412,11 @@ export default function App() {
   };
 
   const handleForceSync = async () => {
+    if (googleUser && accessToken && spreadsheetId) {
+      await syncFromGoogle(accessToken, spreadsheetId);
+      return;
+    }
+
     const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>("/api/sync", {
       method: "POST"
     });
@@ -208,6 +428,7 @@ export default function App() {
       {/* Decorative floating blur circles for Vibrant background depth */}
       <div className="absolute top-20 left-10 w-80 h-80 bg-fuchsia-400/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute bottom-40 right-10 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
       <div className="absolute top-[45%] right-[25%] w-80 h-80 bg-amber-300/5 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Thick glowing top gradient bar */}
@@ -253,6 +474,82 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 mt-8 space-y-8 relative z-10">
         
+        {/* Google Sheets Sync & Auth Status Panel */}
+        <div id="google-sync-panel" className="bg-white rounded-3xl p-5 shadow-[0_10px_30px_rgba(99,102,241,0.05)] border border-slate-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/3 rounded-full blur-xl pointer-events-none" />
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 text-center md:text-left flex-col md:flex-row">
+              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                googleUser ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+              }`}>
+                <Database className={`w-5 h-5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2 justify-center md:justify-start">
+                  {googleUser ? "🟢 ซิงก์ข้อมูลกับ Google Sheets เรียบร้อยแล้ว" : "☁️ โหมดบันทึกข้อมูลแบบแชร์ (Google Sheets Sync)"}
+                  {isSyncingGoogle && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold animate-pulse">กำลังซิงก์...</span>}
+                </h3>
+                <p className="text-slate-500 text-xs mt-0.5 font-medium">
+                  {googleUser 
+                    ? `บัญชีผู้ใช้: ${googleUser.email} | ข้อมูลทั้งหมดจัดเก็บอย่างปลอดภัยบนสเปรดชีตและไดรฟ์ส่วนตัว`
+                    : "เชื่อมต่อบัญชี Google ของคุณเพื่อบันทึกและซิงก์รายงานทำความสะอาดทั้งหมดกับคนอื่นในทีมแบบเรียลไทม์"
+                  }
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end shrink-0 w-full md:w-auto">
+              {googleUser ? (
+                <>
+                  {dbState?.googleSheetUrl && (
+                    <a
+                      href={dbState.googleSheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 font-bold px-4 py-2.5 rounded-2xl text-xs transition-all duration-150 cursor-pointer shadow-xs"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      เปิด Google Sheet
+                    </a>
+                  )}
+                  <button
+                    onClick={handleForceSync}
+                    disabled={isSyncingGoogle}
+                    className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
+                    ดึงข้อมูลใหม่
+                  </button>
+                  <button
+                    onClick={handleGoogleSignOut}
+                    className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
+                    title="ออกจากระบบ"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    ยกเลิกการซิงก์
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleGoogleSignIn}
+                  className="gsi-material-button inline-flex items-center justify-center gap-2 px-5 py-3 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-black rounded-2xl text-xs transition shadow-xs cursor-pointer active:scale-95"
+                >
+                  <div className="gsi-material-button-icon shrink-0">
+                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "16px", height: "16px" }}>
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                      <path fill="none" d="M0 0h48v48H0z"></path>
+                    </svg>
+                  </div>
+                  <span className="gsi-material-button-contents font-bold">เชื่อมต่อกับ Google Sheets</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Daily Mission Widget */}
         {dbState && (
           <motion.div
@@ -450,7 +747,10 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
             >
               {dbState ? (
-                <HistoryViewer dbState={dbState} />
+                <HistoryViewer
+                  dbState={dbState}
+                  onDeleteReport={handleDeleteReport}
+                />
               ) : (
                 <div className="flex justify-center py-20 bg-white rounded-3xl border border-slate-100">
                   <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent" />

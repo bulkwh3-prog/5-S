@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { Calendar, Award, CheckCircle, Search, Clock, MapPin, User, FileX, Download, RefreshCw } from "lucide-react";
+import { Calendar, Award, CheckCircle, Search, Clock, MapPin, User, FileX, Download, RefreshCw, Trash2 } from "lucide-react";
 import { DatabaseState, Report } from "../types";
 
 interface HistoryViewerProps {
   dbState: DatabaseState;
+  onDeleteReport?: (id: string) => void;
 }
 
-export function HistoryViewer({ dbState }: HistoryViewerProps) {
+export function HistoryViewer({ dbState, onDeleteReport }: HistoryViewerProps) {
   // Find all unique dates that have reports
   const uniqueDates = Array.from(new Set(dbState.reports.map((r) => r.date)))
     .sort((a, b) => b.localeCompare(a)); // Latest first
@@ -274,7 +275,7 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
                   </div>
                 </div>
 
-                {/* Download links */}
+                {/* Download and Delete links */}
                 <div className="flex gap-2 border-t border-slate-100 pt-3">
                   <button
                     onClick={() => handleCombineAndDownload(report)}
@@ -291,6 +292,15 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
                       </>
                     )}
                   </button>
+                  {onDeleteReport && (
+                    <button
+                      onClick={() => onDeleteReport(report.id)}
+                      className="inline-flex items-center justify-center p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition cursor-pointer shrink-0"
+                      title="ลบรายงานการส่งนี้"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
