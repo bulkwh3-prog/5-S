@@ -11,8 +11,6 @@ import { CelebrationPopup } from "./components/CelebrationPopup";
 import {
   initAuth,
   googleSignIn,
-  googleSignInWithRedirect,
-  handleRedirectResult,
   logout,
   getAccessToken,
   uploadImageToDrive,
@@ -180,29 +178,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error("Google login failed:", err);
-      const errorCode = err.code || "";
-      const errorMessage = err.message || "";
-      
-      if (errorCode === "auth/popup-closed-by-user" || errorMessage.includes("popup-closed-by-user")) {
-        setErrorMsg("คุณได้ปิดหน้าต่างลงชื่อเข้าใช้ (การเชื่อมต่อถูกยกเลิก)");
-      } else if (errorCode === "auth/popup-blocked" || errorMessage.includes("popup-blocked")) {
-        setErrorMsg("ป๊อปอัปถูกบล็อกโดยเบราว์เซอร์ของคุณ กรุณาอนุญาตให้เปิดป๊อปอัปสำหรับหน้านี้แล้วลองใหม่อีกครั้ง");
-      } else if (errorCode === "auth/cancelled-popup-request" || errorMessage.includes("cancelled-popup-request")) {
-        setErrorMsg("มีหน้าต่างเข้าสู่ระบบกำลังทำงานอยู่ กรุณารอสักครู่หรือรีเฟรชหน้าเว็บ");
-      } else {
-        setErrorMsg("เข้าสู่ระบบล้มเหลว: " + (err.message || err));
-      }
-    }
-  };
-
-  const handleGoogleSignInWithRedirect = async () => {
-    try {
-      setErrorMsg(null);
-      setSuccessMsg("กำลังนำทางท่านไปยังหน้าลงชื่อเข้าใช้ของ Google...");
-      await googleSignInWithRedirect();
-    } catch (err: any) {
-      console.error("Google redirect login failed:", err);
-      setErrorMsg("เข้าสู่ระบบด้วยการนำทางล้มเหลว: " + (err.message || err));
+      setErrorMsg("เข้าสู่ระบบล้มเหลว: " + err.message);
     }
   };
 
@@ -220,25 +196,6 @@ export default function App() {
       console.error("Logout failed:", err);
     }
   };
-
-  // Check redirect results on mount
-  useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const result = await handleRedirectResult();
-        if (result) {
-          setGoogleUser(result.user);
-          setAccessToken(result.accessToken);
-          await syncFromGoogle(result.accessToken, spreadsheetId);
-          setSuccessMsg("เชื่อมต่อบัญชี Google สำเร็จจากระบบการนำทาง (Redirect)!");
-        }
-      } catch (err: any) {
-        console.error("Redirect check failed:", err);
-        setErrorMsg("ไม่สามารถดึงข้อมูลผลการนำทางได้: " + err.message);
-      }
-    };
-    checkRedirect();
-  }, []);
 
   useEffect(() => {
     initAuth(
@@ -509,122 +466,76 @@ export default function App() {
         {/* Google Sheets Sync & Auth Status Panel */}
         <div id="google-sync-panel" className="bg-white rounded-3xl p-5 shadow-[0_10px_30px_rgba(99,102,241,0.05)] border border-slate-100 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/3 rounded-full blur-xl pointer-events-none" />
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5 text-center md:text-left flex-col md:flex-row">
-                <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
-                  googleUser ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"
-                }`}>
-                  <Database className={`w-5 h-5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2 justify-center md:justify-start">
-                    {googleUser ? "🟢 ซิงก์ข้อมูลกับ Google Sheets เรียบร้อยแล้ว" : "☁️ โหมดบันทึกข้อมูลแบบแชร์ (Google Sheets Sync)"}
-                    {isSyncingGoogle && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold animate-pulse">กำลังซิงก์...</span>}
-                  </h3>
-                  <p className="text-slate-500 text-xs mt-0.5 font-medium">
-                    {googleUser 
-                      ? `บัญชีผู้ใช้: ${googleUser.email} | ข้อมูลทั้งหมดจัดเก็บอย่างปลอดภัยบนสเปรดชีตและไดรฟ์ส่วนตัว`
-                      : "เชื่อมต่อบัญชี Google ของคุณเพื่อบันทึกและซิงก์รายงานทำความสะอาดทั้งหมดกับคนอื่นในทีมแบบเรียลไทม์"
-                    }
-                  </p>
-                </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 text-center md:text-left flex-col md:flex-row">
+              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                googleUser ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+              }`}>
+                <Database className={`w-5 h-5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
               </div>
-
-              <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end shrink-0 w-full md:w-auto">
-                {googleUser ? (
-                  <>
-                    {dbState?.googleSheetUrl && (
-                      <a
-                        href={dbState.googleSheetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 font-bold px-4 py-2.5 rounded-2xl text-xs transition-all duration-150 cursor-pointer shadow-xs"
-                      >
-                        <Globe className="w-3.5 h-3.5" />
-                        เปิด Google Sheet
-                      </a>
-                    )}
-                    <button
-                      onClick={handleForceSync}
-                      disabled={isSyncingGoogle}
-                      className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
-                      ดึงข้อมูลใหม่
-                    </button>
-                    <button
-                      onClick={handleGoogleSignOut}
-                      className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
-                      title="ออกจากระบบ"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      ยกเลิกการซิงก์
-                    </button>
-                  </>
-                ) : (
-                  <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto items-center">
-                    <button
-                      onClick={handleGoogleSignIn}
-                      className="gsi-material-button inline-flex items-center justify-center gap-2 px-5 py-3.5 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-black rounded-2xl text-xs transition shadow-xs cursor-pointer active:scale-95 w-full sm:w-auto"
-                    >
-                      <div className="gsi-material-button-icon shrink-0">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "16px", height: "16px" }}>
-                          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                          <path fill="none" d="M0 0h48v48H0z"></path>
-                        </svg>
-                      </div>
-                      <span className="gsi-material-button-contents font-bold">เชื่อมต่อผ่านป๊อปอัป (Popup)</span>
-                    </button>
-
-                    <button
-                      onClick={handleGoogleSignInWithRedirect}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-3.5 border border-emerald-200 hover:border-emerald-300 bg-emerald-50/60 hover:bg-emerald-50 text-emerald-800 font-extrabold rounded-2xl text-xs transition shadow-xs cursor-pointer active:scale-95 w-full sm:w-auto animate-pulse"
-                    >
-                      <Globe className="w-4 h-4 text-emerald-600 shrink-0 animate-bounce" />
-                      <span>แนะนำ: เชื่อมต่อผ่าน Redirect (ปลอดภัย 100%)</span>
-                    </button>
-                  </div>
-                )}
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2 justify-center md:justify-start">
+                  {googleUser ? "🟢 ซิงก์ข้อมูลกับ Google Sheets เรียบร้อยแล้ว" : "☁️ โหมดบันทึกข้อมูลแบบแชร์ (Google Sheets Sync)"}
+                  {isSyncingGoogle && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold animate-pulse">กำลังซิงก์...</span>}
+                </h3>
+                <p className="text-slate-500 text-xs mt-0.5 font-medium">
+                  {googleUser 
+                    ? `บัญชีผู้ใช้: ${googleUser.email} | ข้อมูลทั้งหมดจัดเก็บอย่างปลอดภัยบนสเปรดชีตและไดรฟ์ส่วนตัว`
+                    : "เชื่อมต่อบัญชี Google ของคุณเพื่อบันทึกและซิงก์รายงานทำความสะอาดทั้งหมดกับคนอื่นในทีมแบบเรียลไทม์"
+                  }
+                </p>
               </div>
             </div>
 
-            {errorMsg && (
-              <div className="bg-red-50 border border-red-100 text-red-800 text-xs font-bold p-4 rounded-2xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
+            <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end shrink-0 w-full md:w-auto">
+              {googleUser ? (
+                <>
+                  {dbState?.googleSheetUrl && (
+                    <a
+                      href={dbState.googleSheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 font-bold px-4 py-2.5 rounded-2xl text-xs transition-all duration-150 cursor-pointer shadow-xs"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      เปิด Google Sheet
+                    </a>
+                  )}
+                  <button
+                    onClick={handleForceSync}
+                    disabled={isSyncingGoogle}
+                    className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
+                    ดึงข้อมูลใหม่
+                  </button>
+                  <button
+                    onClick={handleGoogleSignOut}
+                    className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
+                    title="ออกจากระบบ"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    ยกเลิกการซิงก์
+                  </button>
+                </>
+              ) : (
                 <button
-                  type="button"
-                  onClick={() => setErrorMsg(null)}
-                  className="text-[10px] text-red-600 hover:underline cursor-pointer font-extrabold shrink-0"
+                  onClick={handleGoogleSignIn}
+                  className="gsi-material-button inline-flex items-center justify-center gap-2 px-5 py-3 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-black rounded-2xl text-xs transition shadow-xs cursor-pointer active:scale-95"
                 >
-                  ปิดแจ้งเตือน [X]
-                </button>
-              </div>
-            )}
-
-            {!googleUser && (
-              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-xs text-amber-800 font-bold space-y-2">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-amber-900">💡 คำแนะนำเมื่อกดปุ่มเชื่อมต่อแล้วเงียบหายหรือไม่ตอบสนอง:</p>
-                    <p className="font-normal text-slate-600 mt-1">
-                      เนื่องจากเบราว์เซอร์จะบล็อกการเปิดหน้าต่างใหม่ (Popups) ภายในโหมดพรีวิวของ AI Studio เพื่อความปลอดภัยสูงสุด กรุณาดำเนินการข้อใดข้อหนึ่งด้านล่างนี้:
-                    </p>
-                    <ul className="list-decimal list-inside font-medium text-slate-700 mt-1.5 space-y-1 pl-1">
-                      <li>คลิกไอคอน <strong className="text-indigo-600 font-black">"เปิดในแท็บใหม่" (Open in new tab ↗️)</strong> ที่มุมขวาบนสุดของหน้าต่างพรีวิว เพื่อใช้งานนอก Iframe และลงชื่อเข้าใช้ได้ราบรื่น 100%</li>
-                      <li>หรือ ตรวจสอบมุมขวาของช่องกรอก URL ในเบราว์เซอร์ของคุณ เพื่อกด <strong className="text-amber-800 font-black">"อนุญาตป๊อปอัปและคุกกี้จากหน้านี้" (Allow Popups)</strong> แล้วลองกดใหม่อีกครั้ง</li>
-                    </ul>
+                  <div className="gsi-material-button-icon shrink-0">
+                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "16px", height: "16px" }}>
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                      <path fill="none" d="M0 0h48v48H0z"></path>
+                    </svg>
                   </div>
-                </div>
-              </div>
-            )}
+                  <span className="gsi-material-button-contents font-bold">เชื่อมต่อกับ Google Sheets</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -825,10 +736,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
             >
               {dbState ? (
-                <HistoryViewer
-                  dbState={dbState}
-                  onDeleteReport={handleDeleteReport}
-                />
+                <HistoryViewer dbState={dbState} />
               ) : (
                 <div className="flex justify-center py-20 bg-white rounded-3xl border border-slate-100">
                   <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent" />
