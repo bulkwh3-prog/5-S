@@ -2,6 +2,8 @@ import { initializeApp } from "firebase/app";
 import {
   getAuth,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   User,
@@ -61,6 +63,33 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
   } finally {
     isSigningIn = false;
   }
+};
+
+export const googleSignInWithRedirect = async (): Promise<void> => {
+  try {
+    await signInWithRedirect(auth, provider);
+  } catch (error: any) {
+    console.error("Sign in with redirect error:", error);
+    throw error;
+  }
+};
+
+export const handleRedirectResult = async (): Promise<{ user: User; accessToken: string } | null> => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        cachedAccessToken = credential.accessToken;
+        sessionStorage.setItem("google_oauth_access_token", cachedAccessToken);
+        return { user: result.user, accessToken: cachedAccessToken };
+      }
+    }
+  } catch (error: any) {
+    console.error("Redirect result error:", error);
+    throw error;
+  }
+  return null;
 };
 
 export const logout = async () => {
