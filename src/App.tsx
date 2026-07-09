@@ -458,104 +458,72 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 shrink-0 bg-slate-100 p-2 rounded-2xl border border-slate-200/50">
-            <span className="text-xs font-black text-slate-700 bg-white shadow-xs px-3.5 py-1.5 rounded-xl border border-slate-200">
-              📅 วันนี้: {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-            </span>
-            <div className="h-4 w-[1px] bg-slate-300" />
-            <button
-              onClick={fetchData}
-              className="p-1.5 hover:bg-white rounded-xl transition hover:shadow-xs active:scale-95"
-              title="ดึงข้อมูลใหม่ล่าสุด"
-            >
-              <RefreshCw className="w-4 h-4 text-slate-600 hover:rotate-180 transition-transform duration-500" />
-            </button>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {googleUser ? (
+              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-100 p-1.5 pl-3 pr-2.5 rounded-2xl text-xs font-extrabold shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="max-w-[120px] truncate font-bold" title={googleUser.email || ""}>
+                  {googleUser.email ? googleUser.email.split("@")[0] : "ซิงก์แล้ว"}
+                </span>
+                
+                {dbState?.googleSheetUrl && (
+                  <a
+                    href={dbState.googleSheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 hover:bg-emerald-100 rounded-lg transition"
+                    title="เปิด Google Sheet"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                  </a>
+                )}
+                
+                <button
+                  onClick={handleForceSync}
+                  disabled={isSyncingGoogle}
+                  className="p-1 hover:bg-emerald-100 rounded-lg transition cursor-pointer"
+                  title="ซิงก์ข้อมูลใหม่"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingGoogle ? "animate-spin" : ""}`} />
+                </button>
+                
+                <button
+                  onClick={handleGoogleSignOut}
+                  className="p-1 hover:bg-red-50 text-red-600 rounded-lg transition cursor-pointer"
+                  title="ยกเลิกการเชื่อมต่อ Sheets"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center md:items-end gap-1">
+                <button
+                  onClick={handleGoogleSignIn}
+                  className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-extrabold px-3 py-2 rounded-2xl text-xs transition cursor-pointer shadow-xs active:scale-95"
+                >
+                  <Database className="w-3.5 h-3.5 text-slate-500" />
+                  <span>เชื่อมต่อ Sheets</span>
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
+              <span className="text-xs font-black text-slate-700 bg-white shadow-xs px-3.5 py-1.5 rounded-xl border border-slate-200">
+                📅 วันนี้: {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+              <button
+                onClick={fetchData}
+                className="p-1.5 hover:bg-white rounded-xl transition hover:shadow-xs active:scale-95 cursor-pointer"
+                title="ดึงข้อมูลใหม่ล่าสุด"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-slate-600 hover:rotate-180 transition-transform duration-500" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 mt-8 space-y-8 relative z-10">
-        
-        {/* Google Sheets Sync & Auth Status Panel */}
-        <div id="google-sync-panel" className="bg-white rounded-3xl p-5 shadow-[0_10px_30px_rgba(99,102,241,0.05)] border border-slate-100 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/3 rounded-full blur-xl pointer-events-none" />
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5 text-center md:text-left flex-col md:flex-row">
-              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
-                googleUser ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"
-              }`}>
-                <Database className={`w-5 h-5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2 justify-center md:justify-start">
-                  {googleUser ? "🟢 ซิงก์ข้อมูลกับ Google Sheets เรียบร้อยแล้ว" : "☁️ โหมดบันทึกข้อมูลแบบแชร์ (Google Sheets Sync)"}
-                  {isSyncingGoogle && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-bold animate-pulse">กำลังซิงก์...</span>}
-                </h3>
-                <p className="text-slate-500 text-xs mt-0.5 font-medium">
-                  {googleUser 
-                    ? `บัญชีผู้ใช้: ${googleUser.email} | ข้อมูลทั้งหมดจัดเก็บอย่างปลอดภัยบนสเปรดชีตและไดรฟ์ส่วนตัว`
-                    : "เชื่อมต่อบัญชี Google ของคุณเพื่อบันทึกและซิงก์รายงานทำความสะอาดทั้งหมดกับคนอื่นในทีมแบบเรียลไทม์"
-                  }
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end shrink-0 w-full md:w-auto">
-              {googleUser ? (
-                <>
-                  {dbState?.googleSheetUrl && (
-                    <a
-                      href={dbState.googleSheetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 font-bold px-4 py-2.5 rounded-2xl text-xs transition-all duration-150 cursor-pointer shadow-xs"
-                    >
-                      <Globe className="w-3.5 h-3.5" />
-                      เปิด Google Sheet
-                    </a>
-                  )}
-                  <button
-                    onClick={handleForceSync}
-                    disabled={isSyncingGoogle}
-                    className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGoogle ? "animate-spin" : ""}`} />
-                    ดึงข้อมูลใหม่
-                  </button>
-                  <button
-                    onClick={handleGoogleSignOut}
-                    className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 font-bold px-4 py-2.5 rounded-2xl text-xs transition duration-150 cursor-pointer"
-                    title="ออกจากระบบ"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    ยกเลิกการซิงก์
-                  </button>
-                </>
-              ) : (
-                <div className="flex flex-col items-center md:items-end gap-1.5">
-                  <button
-                    onClick={handleGoogleSignIn}
-                    className="gsi-material-button inline-flex items-center justify-center gap-2 px-5 py-3 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-black rounded-2xl text-xs transition shadow-xs cursor-pointer active:scale-95"
-                  >
-                    <div className="gsi-material-button-icon shrink-0">
-                      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: "block", width: "16px", height: "16px" }}>
-                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                        <path fill="none" d="M0 0h48v48H0z"></path>
-                      </svg>
-                    </div>
-                    <span className="gsi-material-button-contents font-bold">เชื่อมต่อกับ Google Sheets</span>
-                  </button>
-                  <p className="text-[10px] text-slate-400 font-semibold text-center md:text-right">
-                    ⚠️ หากล็อกอินไม่ได้ กรุณากดปุ่ม <b>"เปิดในแท็บใหม่"</b> (Open in New Tab) ขวาบนของจอนอก iframe
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* Daily Mission Widget */}
         {dbState && (
