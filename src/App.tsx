@@ -93,6 +93,7 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isAuthDomainError, setIsAuthDomainError] = useState(false);
 
   // Celebration States
   const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
@@ -182,6 +183,7 @@ export default function App() {
   const handleGoogleSignIn = async () => {
     try {
       setErrorMsg(null);
+      setIsAuthDomainError(false);
       const result = await googleSignIn();
       if (result) {
         setGoogleUser(result.user);
@@ -199,6 +201,9 @@ export default function App() {
         setErrorMsg(
           "⚠️ การเข้าสู่ระบบล้มเหลวเนื่องจากป๊อปอัปความปลอดภัยถูกปิดลงหรือถูกบล็อกโดยเบราว์เซอร์"
         );
+      } else if (err.code === "auth/unauthorized-domain" || err.message?.includes("unauthorized-domain")) {
+        setErrorMsg("เข้าสู่ระบบล้มเหลว: โดเมนปัจจุบันยังไม่ได้รับอนุญาตในโครงการ Firebase (auth/unauthorized-domain)");
+        setIsAuthDomainError(true);
       } else {
         setErrorMsg("เข้าสู่ระบบล้มเหลว: " + err.message);
       }
@@ -225,6 +230,7 @@ export default function App() {
       (user, token) => {
         setGoogleUser(user);
         setAccessToken(token);
+        setIsAuthDomainError(false);
         syncFromGoogle(token, spreadsheetId);
       },
       () => {
@@ -596,12 +602,104 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setErrorMsg(null);
+                      setIsAuthDomainError(false);
                       fetchData();
                     }}
                     className="inline-flex items-center gap-1.5 bg-rose-200 hover:bg-rose-300 text-rose-800 px-3 py-1.5 rounded-xl text-[11px] font-black transition active:scale-95 cursor-pointer whitespace-nowrap"
                   >
                     ปิด
                   </button>
+                </div>
+              </motion.div>
+            )}
+
+            {isAuthDomainError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-indigo-50 border border-indigo-100 text-slate-800 p-6 rounded-3xl space-y-4 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-indigo-100/60 text-indigo-600 rounded-2xl shrink-0 mt-0.5">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-extrabold text-indigo-950 text-sm">💡 วิธีการแก้ไขปัญหาการเข้าสู่ระบบ (auth/unauthorized-domain)</h3>
+                    <p className="text-slate-600 text-xs font-semibold leading-relaxed">
+                      เนื่องจาก Firebase Authentication ต้องการให้ตั้งค่า "โดเมนที่ได้รับอนุญาต" (Authorized Domains) ก่อนทำการลงชื่อเข้าใช้งานด้วย Google โปรดทำตามขั้นตอนสั้นๆ ด้านล่างนี้เพื่อเปิดสิทธิ์การใช้งาน:
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-4 border border-indigo-100/40 text-xs font-semibold text-slate-700 space-y-3 shadow-xs">
+                  <p className="font-black text-indigo-950">📋 ขั้นตอนการตั้งค่าใน Firebase Console:</p>
+                  <ol className="list-decimal pl-5 space-y-2 leading-relaxed">
+                    <li>
+                      เปิดหน้าการตั้งค่า OAuth ของโครงการ Firebase นี้:{" "}
+                      <a
+                        href="https://console.firebase.google.com/u/0/project/composite-strata-s07pf/authentication/providers"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:underline font-extrabold inline-flex items-center gap-0.5"
+                      >
+                        เปิด Firebase Console <Globe className="w-3.5 h-3.5 inline" />
+                      </a>
+                    </li>
+                    <li>เลื่อนลงไปที่ส่วน <strong>"โดเมนที่ได้รับอนุญาต" (Authorized domains)</strong> ด้านล่างสุด</li>
+                    <li>
+                      คลิกปุ่ม <strong>"เพิ่มโดเมน" (Add domain)</strong> จากนั้นนำโดเมนด้านล่างนี้ไปใส่ให้ครบทั้ง 2 ตัว:
+                    </li>
+                  </ol>
+
+                  <div className="space-y-2.5 pt-1.5">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg shrink-0 font-bold">โดเมนที่ 1 (Dev)</span>
+                      <div className="flex-1 flex gap-1.5">
+                        <input
+                          type="text"
+                          readOnly
+                          value="ais-dev-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app"
+                          className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5 text-[11px] font-mono select-all text-slate-700 font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText("ais-dev-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app");
+                            alert("คัดลอก โดเมนที่ 1 เรียบร้อย!");
+                          }}
+                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-xl font-bold text-[11px] border border-indigo-100 transition whitespace-nowrap active:scale-95 cursor-pointer"
+                        >
+                          คัดลอก
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg shrink-0 font-bold">โดเมนที่ 2 (Pre)</span>
+                      <div className="flex-1 flex gap-1.5">
+                        <input
+                          type="text"
+                          readOnly
+                          value="ais-pre-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app"
+                          className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5 text-[11px] font-mono select-all text-slate-700 font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText("ais-pre-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app");
+                            alert("คัดลอก โดเมนที่ 2 เรียบร้อย!");
+                          }}
+                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-xl font-bold text-[11px] border border-indigo-100 transition whitespace-nowrap active:scale-95 cursor-pointer"
+                        >
+                          คัดลอก
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-100 font-semibold leading-relaxed">
+                    💡 เมื่อกดเพิ่มใน Firebase Console เรียบร้อยแล้ว สามารถกดปุ่ม <strong>"ลองเข้าสู่ระบบอีกครั้ง"</strong> ด้านบนได้ทันทีเลยครับ!
+                  </p>
                 </div>
               </motion.div>
             )}
