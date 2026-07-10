@@ -5,5 +5,6 @@
   "authDomain": "composite-strata-s07pf.firebaseapp.com",
   "storageBucket": "composite-strata-s07pf.firebasestorage.app",
   "messagingSenderId": "945612373314",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "945612373314-gq51si6lm2b0q7d1bstqktiv3i3hl9jo.apps.googleusercontent.com"
 }
