@@ -285,34 +285,19 @@ export function SettingsPanel({
               สถานะของคุณขณะนี้คือ <span className="text-indigo-600 font-extrabold">โหมดออฟไลน์เฉพาะอุปกรณ์ (Local Mode)</span> ผู้ใช้อื่นจะไม่สามารถมองเห็นข้อมูลและคะแนนที่คุณส่งได้ และข้อมูลอาจรีเซ็ตเมื่อเซิร์ฟเวอร์เริ่มทำงานใหม่
             </p>
 
-            {/* Check if preview is inside iframe */}
-            {typeof window !== "undefined" && window.self !== window.top && (
-              <div className="p-4 bg-amber-50 border border-amber-200/60 rounded-2xl text-[11px] text-amber-800 leading-relaxed font-semibold flex flex-col gap-3 shadow-sm">
-                <div className="flex items-start gap-2.5">
-                  <span className="text-sm shrink-0">💡</span>
-                  <div>
-                    <strong>ข้อแนะนำสำหรับการพรีวิว:</strong> ขณะนี้คุณพรีวิวผ่าน iFrame ซึ่งเบราว์เซอร์มักบล็อกหน้าต่างล็อกอินความปลอดภัยของ Google แนะนำให้กดเปิดแท็บใหม่ด้านล่างนี้เลยครับ!
-                  </div>
-                </div>
-                <a
-                  href={window.location.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 shadow-sm active:scale-95 text-center cursor-pointer"
-                >
-                  🚀 คลิกที่นี่เพื่อเปิดแอปในแท็บใหม่ (แก้ปัญหาบล็อกป๊อปอัป)
-                </a>
-              </div>
-            )}
-
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={onGoogleSignIn}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-black px-6 py-3 rounded-2xl text-xs transition shadow-md shadow-indigo-100 cursor-pointer"
+                className="inline-flex items-center gap-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 font-black px-6 py-3.5 rounded-2xl text-xs transition shadow-xs active:scale-95 cursor-pointer"
               >
-                <Database className="w-4 h-4" />
-                ลงชื่อเข้าใช้งานด้วย Google เพื่อซิงก์และแบ่งปันข้อมูลกับทีม
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-4 h-4 shrink-0">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                </svg>
+                <span>ลงชื่อเข้าใช้งานด้วย Google (Sign in with Google)</span>
               </button>
             </div>
             <div className="text-[11px] text-slate-400 font-medium leading-relaxed">

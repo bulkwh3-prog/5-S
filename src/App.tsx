@@ -197,7 +197,7 @@ export default function App() {
         err.message?.includes("cancelled-by-user")
       ) {
         setErrorMsg(
-          "⚠️ การเข้าสู่ระบบล้มเหลวเนื่องจากระบบความปลอดภัยบล็อกป๊อปอัปของ Google 💡 วิธีแก้ไข: กรุณากดปุ่มเปิดในแท็บใหม่ด้านล่าง หรือปุ่มเปิดในแท็บใหม่ด้านบนสุดของหน้าเพื่อสลับไปใช้งานแบบเต็มหน้าจอ"
+          "⚠️ การเข้าสู่ระบบล้มเหลวเนื่องจากป๊อปอัปความปลอดภัยถูกปิดลงหรือถูกบล็อกโดยเบราว์เซอร์"
         );
       } else {
         setErrorMsg("เข้าสู่ระบบล้มเหลว: " + err.message);
@@ -481,24 +481,6 @@ export default function App() {
       {/* Thick glowing top gradient bar */}
       <div className="h-2.5 w-full bg-gradient-to-r from-pink-500 via-purple-500 via-indigo-500 via-cyan-400 to-amber-400 shadow-[0_2px_15px_rgba(219,39,119,0.25)]" />
 
-      {/* iFrame Notice Bar */}
-      {typeof window !== "undefined" && window.self !== window.top && (
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2.5 text-xs font-black shadow-inner flex flex-wrap items-center justify-between gap-3 relative z-20">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">⚠️</span>
-            <span>ขณะนี้ระบบทำงานอยู่ใต้ iframe ของ AI Studio หากต้องการซิงก์ข้อมูลหรือล็อกอินด้วย Google กรุณากด "เปิดในแท็บใหม่" ด้านขวา</span>
-          </div>
-          <a
-            href={window.location.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-xl font-extrabold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
-          >
-            🚀 เปิดในแท็บใหม่ (Open in New Tab)
-          </a>
-        </div>
-      )}
-
       {/* Header section */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 py-6 px-4 md:px-8 shadow-sm relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -558,11 +540,16 @@ export default function App() {
             ) : (
               <button
                 onClick={handleGoogleSignIn}
-                className="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 font-bold px-3 py-2 rounded-2xl text-xs transition cursor-pointer shadow-xs active:scale-95"
-                title="เชื่อมต่อ Google เพื่อเปิดระบบแชร์ข้อมูลกับทีม"
+                className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-extrabold px-3.5 py-2 rounded-2xl text-xs transition cursor-pointer shadow-xs active:scale-95"
+                title="ลงชื่อเข้าใช้งานด้วย Google"
               >
-                <Database className="w-3.5 h-3.5" />
-                <span>แชร์ข้อมูลกับทีม (Sync)</span>
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-4 h-4 shrink-0">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                </svg>
+                <span>เชื่อมต่อ Google Sheets</span>
               </button>
             )}
 
@@ -583,6 +570,63 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 mt-8 space-y-8 relative z-10">
+
+        {/* Global Notifications for Auth Errors/Success (highly visible on any tab) */}
+        {(errorMsg || successMsg) && (
+          <div className="space-y-3">
+            {errorMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-rose-50 border border-rose-100/80 text-rose-800 text-xs font-semibold p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+              >
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                  <span className="leading-relaxed">{errorMsg}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-black transition active:scale-95 cursor-pointer shadow-xs whitespace-nowrap"
+                  >
+                    ลองเข้าสู่ระบบอีกครั้ง
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorMsg(null);
+                      fetchData();
+                    }}
+                    className="inline-flex items-center gap-1.5 bg-rose-200 hover:bg-rose-300 text-rose-800 px-3 py-1.5 rounded-xl text-[11px] font-black transition active:scale-95 cursor-pointer whitespace-nowrap"
+                  >
+                    ปิด
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-semibold p-4 rounded-2xl flex items-center justify-between gap-2 shadow-sm"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Check className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuccessMsg(null)}
+                  className="text-slate-400 hover:text-slate-600 font-bold px-2 py-1 text-xs"
+                >
+                  ปิด
+                </button>
+              </motion.div>
+            )}
+          </div>
+        )}
 
         {/* Daily Mission Widget */}
         {dbState && (
@@ -662,49 +706,7 @@ export default function App() {
                     <p className="text-slate-500 text-xs mt-1">กรอกข้อมูล เลือกพื้นที่ และอัปโหลดภาพก่อน-หลังที่ได้ทำการแสตมป์เวลาแล้ว</p>
                   </div>
 
-                  {errorMsg && (
-                    <div className="bg-red-50 border border-red-100 text-red-800 text-xs font-bold p-4 rounded-2xl flex flex-col gap-3 mb-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                          <span>{errorMsg}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setErrorMsg(null);
-                            fetchData();
-                          }}
-                          className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-black transition active:scale-95 cursor-pointer self-start sm:self-auto shrink-0 shadow-sm"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" /> ลองเชื่อมต่ออีกครั้ง
-                        </button>
-                      </div>
-                      {(errorMsg.includes("iFrame") || errorMsg.includes("แท็บใหม่") || errorMsg.includes("popup-closed-by-user") || errorMsg.includes("ความปลอดภัยบล็อกป๊อปอัป")) && (
-                        <div className="mt-1 pt-3 border-t border-red-100/60 flex flex-col gap-2">
-                          <p className="text-[11px] text-red-600 font-semibold">
-                            💡 เนื่องจากข้อจำกัดความปลอดภัยของเว็บเบราว์เซอร์เมื่อรันอยู่ใต้ iframe ของ AI Studio กรุณากดลิงก์ด้านล่างเพื่อเปิดแอปพลิเคชันแบบเต็มหน้าจอและเข้าสู่ระบบด้วย Google ได้สำเร็จทันที:
-                          </p>
-                          <a
-                            href={window.location.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer shadow-md self-start"
-                          >
-                            🚀 คลิกที่นี่เพื่อเปิดแอปในแท็บใหม่และแก้ไขปัญหานี้
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {successMsg && (
-                    <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold p-4 rounded-2xl flex items-center gap-2 mb-6">
-                      <Check className="w-5 h-5 text-emerald-500 shrink-0" />
-                      <span>{successMsg}</span>
-                    </div>
-                  )}
-
+                  {/* Form fields */}
                   <form onSubmit={handleSubmit} className="space-y-8">
                     {/* Submitter Dropdown */}
                     <div className="space-y-2">
