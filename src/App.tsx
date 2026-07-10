@@ -191,7 +191,17 @@ export default function App() {
       }
     } catch (err: any) {
       console.error("Google login failed:", err);
-      setErrorMsg("เข้าสู่ระบบล้มเหลว: " + err.message);
+      if (
+        err.code === "auth/popup-closed-by-user" || 
+        err.message?.includes("popup-closed-by-user") ||
+        err.message?.includes("cancelled-by-user")
+      ) {
+        setErrorMsg(
+          "⚠️ ระบบถูกปิดลงเนื่องจากเบราว์เซอร์บล็อกหน้าต่างล็อกอินความปลอดภัยของ Google (ข้อจำกัด iFrame ของ AI Studio) 💡 วิธีแก้ไข: กรุณาคลิกปุ่ม \"เปิดในแท็บใหม่\" (Open in new tab) ที่มุมขวาบน เพื่อสลับใช้งานแบบปกติและเชื่อมต่อ Google สำเร็จอย่างสมบูรณ์ครับ"
+        );
+      } else {
+        setErrorMsg("เข้าสู่ระบบล้มเหลว: " + err.message);
+      }
     }
   };
 
@@ -374,6 +384,41 @@ export default function App() {
     }
   };
 
+  const handleEditReport = async (id: string, updatedData: { submitter: string; area: string }) => {
+    if (googleUser && accessToken && spreadsheetId && dbState) {
+      setIsSyncingGoogle(true);
+      try {
+        const updatedReports = dbState.reports.map(r => {
+          if (r.id === id) {
+            return { ...r, ...updatedData };
+          }
+          return r;
+        });
+        await overwriteReportsInSheet(spreadsheetId, updatedReports, accessToken);
+        setSuccessMsg("แก้ไขข้อมูลรายงานใน Google Sheet เรียบร้อยแล้ว!");
+        await syncFromGoogle(accessToken, spreadsheetId);
+      } catch (err: any) {
+        console.error("Google Edit failed:", err);
+        setErrorMsg("เกิดข้อผิดพลาดในการแก้ไขข้อมูลใน Google Sheets: " + err.message);
+      } finally {
+        setIsSyncingGoogle(false);
+      }
+      return;
+    }
+
+    try {
+      const result = await safeFetchJson<{ success: boolean; db: DatabaseState }>(`/api/reports/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData)
+      });
+      setDbState(result.db);
+    } catch (e: any) {
+      console.error("Error editing report:", e);
+      alert(e.message || "ไม่สามารถแก้ไขรายการได้");
+    }
+  };
+
   const handleSaveSettings = async (settings: { submitters: string[]; googleSheetUrl: string }) => {
     // If logged in with Google, save to Google Sheet
     if (googleUser && accessToken && spreadsheetId) {
@@ -460,51 +505,47 @@ export default function App() {
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             {googleUser ? (
-              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-100 p-1.5 pl-3 pr-2.5 rounded-2xl text-xs font-extrabold shadow-sm">
+              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-100 p-1.5 pl-3 pr-2.5 rounded-2xl text-xs font-extrabold shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="max-w-[120px] truncate font-bold" title={googleUser.email || ""}>
-                  {googleUser.email ? googleUser.email.split("@")[0] : "ซิงก์แล้ว"}
+                  {googleUser.email ? googleUser.email.split("@")[0] : "แชร์ข้อมูลแล้ว"}
                 </span>
-                
                 {dbState?.googleSheetUrl && (
                   <a
                     href={dbState.googleSheetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1 hover:bg-emerald-100 rounded-lg transition"
-                    title="เปิด Google Sheet"
+                    title="เปิด Google Sheet ที่เชื่อมต่อ"
                   >
                     <Globe className="w-3.5 h-3.5 text-emerald-600" />
                   </a>
                 )}
-                
                 <button
                   onClick={handleForceSync}
                   disabled={isSyncingGoogle}
                   className="p-1 hover:bg-emerald-100 rounded-lg transition cursor-pointer"
-                  title="ซิงก์ข้อมูลใหม่"
+                  title="ซิงก์ข้อมูลด่วน"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingGoogle ? "animate-spin" : ""}`} />
                 </button>
-                
                 <button
                   onClick={handleGoogleSignOut}
                   className="p-1 hover:bg-red-50 text-red-600 rounded-lg transition cursor-pointer"
-                  title="ยกเลิกการเชื่อมต่อ Sheets"
+                  title="ปิดโหมดแชร์และออกจากระบบ"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center md:items-end gap-1">
-                <button
-                  onClick={handleGoogleSignIn}
-                  className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-extrabold px-3 py-2 rounded-2xl text-xs transition cursor-pointer shadow-xs active:scale-95"
-                >
-                  <Database className="w-3.5 h-3.5 text-slate-500" />
-                  <span>เชื่อมต่อ Sheets</span>
-                </button>
-              </div>
+              <button
+                onClick={handleGoogleSignIn}
+                className="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 font-bold px-3 py-2 rounded-2xl text-xs transition cursor-pointer shadow-xs active:scale-95"
+                title="เชื่อมต่อ Google เพื่อเปิดระบบแชร์ข้อมูลกับทีม"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>แชร์ข้อมูลกับทีม (Sync)</span>
+              </button>
             )}
 
             <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
@@ -631,49 +672,27 @@ export default function App() {
 
                   <form onSubmit={handleSubmit} className="space-y-8">
                     {/* Submitter Dropdown */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label htmlFor="submitter-select" className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                          👤 เลือกรายชื่อผู้ส่งงาน
-                        </label>
-                        <select
-                          id="submitter-select"
-                          value={selectedSubmitter}
-                          onChange={(e) => setSelectedSubmitter(e.target.value)}
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition duration-150"
-                          required
-                        >
-                          {dbState.submitters.length > 0 ? (
-                            dbState.submitters.map((name) => (
-                              <option key={name} value={name}>
-                                {name}
-                              </option>
-                            ))
-                          ) : (
-                            <option value="">ไม่มีรายชื่อ (โปรดตั้งค่าที่เมนู จัดการรายชื่อ)</option>
-                          )}
-                        </select>
-                      </div>
-
-                      {/* Area Dropdown */}
-                      <div className="space-y-2">
-                        <label htmlFor="area-select" className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                          📍 เลือกบริเวณพื้นที่ทำความสะอาด
-                        </label>
-                        <select
-                          id="area-select"
-                          value={selectedArea}
-                          onChange={(e) => setSelectedArea(e.target.value)}
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition duration-150"
-                          required
-                        >
-                          {CLEANING_AREAS.map((area) => (
-                            <option key={area} value={area}>
-                              {area}
+                    <div className="space-y-2">
+                      <label htmlFor="submitter-select" className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        👤 เลือกรายชื่อผู้ส่งงาน
+                      </label>
+                      <select
+                        id="submitter-select"
+                        value={selectedSubmitter}
+                        onChange={(e) => setSelectedSubmitter(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition duration-150"
+                        required
+                      >
+                        {dbState.submitters.length > 0 ? (
+                          dbState.submitters.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
                             </option>
-                          ))}
-                        </select>
-                      </div>
+                          ))
+                        ) : (
+                          <option value="">ไม่มีรายชื่อ (โปรดตั้งค่าที่เมนู จัดการรายชื่อ)</option>
+                        )}
+                      </select>
                     </div>
 
                     {/* Before & After Upload Fields */}
@@ -729,6 +748,7 @@ export default function App() {
                 <Dashboard
                   dbState={dbState}
                   onDeleteReport={handleDeleteReport}
+                  onEditReport={handleEditReport}
                 />
               ) : (
                 <div className="flex justify-center py-20 bg-white rounded-3xl border border-slate-100">
@@ -744,7 +764,11 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
             >
               {dbState ? (
-                <HistoryViewer dbState={dbState} />
+                <HistoryViewer
+                  dbState={dbState}
+                  onDeleteReport={handleDeleteReport}
+                  onEditReport={handleEditReport}
+                />
               ) : (
                 <div className="flex justify-center py-20 bg-white rounded-3xl border border-slate-100">
                   <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent" />
@@ -764,6 +788,10 @@ export default function App() {
                   googleSheetUrl={dbState.googleSheetUrl}
                   onSaveSettings={handleSaveSettings}
                   onForceSync={handleForceSync}
+                  googleUser={googleUser}
+                  onGoogleSignIn={handleGoogleSignIn}
+                  onGoogleSignOut={handleGoogleSignOut}
+                  isSyncingGoogle={isSyncingGoogle}
                 />
               ) : (
                 <div className="flex justify-center py-20 bg-white rounded-3xl border border-slate-100">

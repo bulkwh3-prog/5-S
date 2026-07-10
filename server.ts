@@ -430,6 +430,58 @@ app.delete("/api/reports/:id", (req, res) => {
   }
 });
 
+// API: Edit a report (Submitter and Area)
+app.put("/api/reports/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const { submitter, area } = req.body;
+    if (!submitter || !area) {
+      return res.status(400).json({ error: "กรุณาระบุผู้ส่งงานและบริเวณพื้นที่ทำความสะอาด" });
+    }
+
+    const db = readDb();
+    const report = db.reports.find(r => r.id === id);
+    if (!report) {
+      return res.status(404).json({ error: "ไม่พบรายการรายงานที่ระบุ" });
+    }
+
+    report.submitter = submitter;
+    report.area = area;
+
+    // Recalculate streak winners for that date
+    const reportDate = report.date;
+    const reportsOnDate = db.reports.filter(r => r.date === reportDate);
+    const counts: Record<string, number> = {};
+    reportsOnDate.forEach(r => {
+      counts[r.submitter] = (counts[r.submitter] || 0) + 1;
+    });
+
+    let topSubmitter = "";
+    let maxCount = 0;
+    Object.entries(counts).forEach(([name, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        topSubmitter = name;
+      }
+    });
+
+    if (topSubmitter) {
+      db.streakBonusWinners[reportDate] = {
+        winner: topSubmitter,
+        count: maxCount,
+        bonus: 50
+      };
+    } else {
+      delete db.streakBonusWinners[reportDate];
+    }
+
+    writeDb(db);
+    res.json({ success: true, db });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Mount Vite middleware for development, or serve built assets in production
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

@@ -1,12 +1,14 @@
 import React, { useState } from "react";
-import { Calendar, Award, CheckCircle, Search, Clock, MapPin, User, FileX, Download, RefreshCw } from "lucide-react";
-import { DatabaseState, Report } from "../types";
+import { Calendar, Award, CheckCircle, Search, Clock, MapPin, User, FileX, Download, RefreshCw, Edit2, Trash2 } from "lucide-react";
+import { DatabaseState, Report, CLEANING_AREAS } from "../types";
 
 interface HistoryViewerProps {
   dbState: DatabaseState;
+  onDeleteReport: (id: string) => void;
+  onEditReport: (id: string, updatedData: { submitter: string; area: string }) => void;
 }
 
-export function HistoryViewer({ dbState }: HistoryViewerProps) {
+export function HistoryViewer({ dbState, onDeleteReport, onEditReport }: HistoryViewerProps) {
   // Find all unique dates that have reports
   const uniqueDates = Array.from(new Set(dbState.reports.map((r) => r.date)))
     .sort((a, b) => b.localeCompare(a)); // Latest first
@@ -16,6 +18,9 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
   );
 
   const [mergingId, setMergingId] = useState<string | null>(null);
+  const [editingReport, setEditingReport] = useState<Report | null>(null);
+  const [editSubmitter, setEditSubmitter] = useState<string>("");
+  const [editArea, setEditArea] = useState<string>("");
 
   // Filter reports of the selected date
   const reportsOnDate = dbState.reports.filter((r) => r.date === selectedDate);
@@ -274,7 +279,7 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
                   </div>
                 </div>
 
-                {/* Download links */}
+                {/* Download links & Edit & Delete */}
                 <div className="flex gap-2 border-t border-slate-100 pt-3">
                   <button
                     onClick={() => handleCombineAndDownload(report)}
@@ -291,6 +296,30 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
                       </>
                     )}
                   </button>
+
+                  <button
+                    onClick={() => {
+                      setEditingReport(report);
+                      setEditSubmitter(report.submitter);
+                      setEditArea(report.area);
+                    }}
+                    className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition border border-indigo-100 flex items-center justify-center cursor-pointer shrink-0"
+                    title="แก้ไขข้อมูลรายงาน"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรายงานการส่งนี้ออก?")) {
+                        onDeleteReport(report.id);
+                      }
+                    }}
+                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition border border-red-100 flex items-center justify-center cursor-pointer shrink-0"
+                    title="ลบรายงานการทำความสะอาดนี้"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -302,6 +331,74 @@ export function HistoryViewer({ dbState }: HistoryViewerProps) {
           </div>
         )}
       </div>
+
+      {/* Edit Report Modal */}
+      {editingReport && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-100 relative overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/3 rounded-full blur-xl pointer-events-none" />
+            
+            <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2 mb-4">
+              <Edit2 className="w-5 h-5 text-indigo-500" />
+              แก้ไขข้อมูลรายงานทำความสะอาด
+            </h3>
+
+            <div className="space-y-4">
+              {/* Submitter Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">👤 ชื่อผู้ส่งงาน</label>
+                <select
+                  value={editSubmitter}
+                  onChange={(e) => setEditSubmitter(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                >
+                  {dbState.submitters.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Area Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">📍 บริเวณพื้นที่ทำความสะอาด</label>
+                <select
+                  value={editArea}
+                  onChange={(e) => setEditArea(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                >
+                  {CLEANING_AREAS.map((area) => (
+                    <option key={area} value={area}>
+                      {area}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2.5 mt-6 border-t border-slate-100 pt-4 justify-end">
+              <button
+                onClick={() => setEditingReport(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={async () => {
+                  if (!editSubmitter || !editArea) return;
+                  await onEditReport(editingReport.id, { submitter: editSubmitter, area: editArea });
+                  setEditingReport(null);
+                }}
+                className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl text-xs transition cursor-pointer shadow-md shadow-indigo-500/10"
+              >
+                บันทึกการแก้ไข
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
