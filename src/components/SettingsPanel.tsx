@@ -287,11 +287,21 @@ export function SettingsPanel({
 
             {/* Check if preview is inside iframe */}
             {typeof window !== "undefined" && window.self !== window.top && (
-              <div className="p-3.5 bg-amber-50 border border-amber-200/60 rounded-2xl text-[11px] text-amber-800 leading-relaxed font-semibold flex items-start gap-2.5 shadow-sm">
-                <span className="text-sm shrink-0">💡</span>
-                <div>
-                  <strong>ข้อแนะนำสำหรับการทดสอบพรีวิว:</strong> ขณะนี้คุณกำลังพรีวิวแอปผ่านระบบ iFrame ของ AI Studio ซึ่งเบราว์เซอร์ส่วนใหญ่จะบล็อกป๊อปอัปความปลอดภัยของ Google กรุณาคลิกปุ่ม <strong>"เปิดในแท็บใหม่" (Open in new tab)</strong> ที่อยู่ด้านบนขวา เพื่อล็อกอินบัญชี Google และแชร์สถิติต่างๆ กับทีมได้สำเร็จร้อยเปอร์เซ็นต์ครับ!
+              <div className="p-4 bg-amber-50 border border-amber-200/60 rounded-2xl text-[11px] text-amber-800 leading-relaxed font-semibold flex flex-col gap-3 shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-sm shrink-0">💡</span>
+                  <div>
+                    <strong>ข้อแนะนำสำหรับการพรีวิว:</strong> ขณะนี้คุณพรีวิวผ่าน iFrame ซึ่งเบราว์เซอร์มักบล็อกหน้าต่างล็อกอินความปลอดภัยของ Google แนะนำให้กดเปิดแท็บใหม่ด้านล่างนี้เลยครับ!
+                  </div>
                 </div>
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 shadow-sm active:scale-95 text-center cursor-pointer"
+                >
+                  🚀 คลิกที่นี่เพื่อเปิดแอปในแท็บใหม่ (แก้ปัญหาบล็อกป๊อปอัป)
+                </a>
               </div>
             )}
 
