@@ -1,22 +1,42 @@
-import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-  signInWithPopup,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  User,
-} from "firebase/auth";
 import firebaseConfig from "../../firebase-applet-config.json";
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-
-const provider = new GoogleAuthProvider();
-provider.addScope("https://www.googleapis.com/auth/spreadsheets");
-provider.addScope("https://www.googleapis.com/auth/drive.file");
+export interface User {
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  uid: string;
+}
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
+let cachedUser: User | null = null;
+let authChangeCallback: ((user: User, token: string) => void) | null = null;
+let authFailureCallback: (() => void) | null = null;
+
+// Dynamically load Google Identity Services SDK
+export function loadGsiScript(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const existing = (window as any).google;
+    if (existing?.accounts?.oauth2) {
+      resolve(existing);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      const loaded = (window as any).google;
+      if (loaded?.accounts?.oauth2) {
+        resolve(loaded);
+      } else {
+        reject(new Error("Failed to load Google Identity Services SDK"));
+      }
+    };
+    script.onerror = () => reject(new Error("Failed to load Google Identity Services SDK"));
+    document.head.appendChild(script);
+  });
+}
 
 /**
  * Upload base64 image to the local server as fallback
@@ -44,32 +64,74 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
-  return onAuthStateChanged(auth, async (user: User | null) => {
-    if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        cachedAccessToken = null;
-        if (onAuthFailure) onAuthFailure();
-      }
-    } else {
-      cachedAccessToken = null;
-      if (onAuthFailure) onAuthFailure();
-    }
-  });
+  if (onAuthSuccess) authChangeCallback = onAuthSuccess;
+  if (onAuthFailure) authFailureCallback = onAuthFailure;
+
+  if (cachedUser && cachedAccessToken) {
+    if (onAuthSuccess) onAuthSuccess(cachedUser, cachedAccessToken);
+  } else {
+    if (onAuthFailure) onAuthFailure();
+  }
+
+  return () => {
+    authChangeCallback = null;
+    authFailureCallback = null;
+  };
 };
 
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error("Failed to get access token from Firebase Auth");
-    }
+    const google = await loadGsiScript();
 
-    cachedAccessToken = credential.accessToken;
-    return { user: result.user, accessToken: cachedAccessToken };
+    return new Promise((resolve, reject) => {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: firebaseConfig.oAuthClientId,
+        scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+        callback: async (response: any) => {
+          if (response.error) {
+            reject(new Error(response.error_description || response.error));
+            return;
+          }
+          if (!response.access_token) {
+            reject(new Error("Failed to get access token from Google"));
+            return;
+          }
+
+          const accessToken = response.access_token;
+
+          try {
+            const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (!userInfoRes.ok) {
+              throw new Error("Failed to fetch user profile info");
+            }
+            const userInfo = await userInfoRes.json();
+
+            const user: User = {
+              email: userInfo.email || null,
+              displayName: userInfo.name || null,
+              photoURL: userInfo.picture || null,
+              uid: userInfo.sub,
+            };
+
+            cachedAccessToken = accessToken;
+            cachedUser = user;
+
+            if (authChangeCallback) {
+              authChangeCallback(user, accessToken);
+            }
+
+            resolve({ user, accessToken });
+          } catch (err: any) {
+            reject(err);
+          }
+        },
+      });
+
+      client.requestAccessToken({ prompt: "consent" });
+    });
   } catch (error: any) {
     console.error("Sign in error:", error);
     throw error;
@@ -79,8 +141,11 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const logout = async () => {
-  await auth.signOut();
   cachedAccessToken = null;
+  cachedUser = null;
+  if (authFailureCallback) {
+    authFailureCallback();
+  }
 };
 
 export const getAccessToken = (): string | null => {

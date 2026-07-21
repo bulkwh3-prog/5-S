@@ -48,7 +48,7 @@ const DEFAULT_SUBMITTERS = [
 
 const initialDb: Database = {
   submitters: DEFAULT_SUBMITTERS,
-  googleSheetUrl: "https://docs.google.com/spreadsheets/d/1FH1qOHjwRvhkSQtR4KYZ930Z97_K2AVloiJCaqs7ArE/edit?gid=0#gid=0",
+  googleSheetUrl: "",
   reports: [],
   streakBonusWinners: {}
 };
@@ -159,18 +159,27 @@ async function syncFromGoogleSheet(url: string): Promise<string[]> {
     throw new Error("URL ของ Google Sheet ไม่ถูกต้อง โปรดตรวจสอบลิงก์อีกครั้ง");
   }
 
-  // Fetch as CSV
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/pub?output=csv`;
-  const response = await fetch(csvUrl);
+  // Fetch as CSV from the "Submitters" sheet specifically.
+  // 1. Try gviz query endpoint first (doesn't require full publish to web, only standard reader share)
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=Submitters`;
+  let response = await fetch(csvUrl);
+  
   if (!response.ok) {
-    // Fallback to secondary export format
-    const fallbackUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
-    const fallbackResponse = await fetch(fallbackUrl);
-    if (!fallbackResponse.ok) {
-      throw new Error("ไม่สามารถดึงข้อมูลจาก Google Sheet ได้ โปรดเปิดให้ 'ทุกคนที่มีลิงก์สามารถดูได้' (Anyone with link can view)");
-    }
-    return parseCsv(await fallbackResponse.text());
+    // 2. Fallback to /export endpoint
+    const fallbackUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=Submitters`;
+    response = await fetch(fallbackUrl);
   }
+
+  if (!response.ok) {
+    // 3. Fallback to /pub endpoint
+    const pubUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/pub?output=csv&sheet=Submitters`;
+    response = await fetch(pubUrl);
+  }
+
+  if (!response.ok) {
+    throw new Error("ไม่สามารถดึงข้อมูลจาก Google Sheet ได้ โปรดเปิดให้ 'ทุกคนที่มีลิงก์สามารถดูได้' (Anyone with link can view)");
+  }
+
   return parseCsv(await response.text());
 }
 
@@ -178,7 +187,8 @@ function parseCsv(csvText: string): string[] {
   const lines = csvText.split(/\r?\n/);
   const names: string[] = [];
   
-  for (let i = 0; i < lines.length; i++) {
+  // Start from line index 1 (row 2) downwards to skip the header row as requested
+  for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
@@ -197,15 +207,7 @@ function parseCsv(csvText: string): string[] {
     }
 
     firstCol = firstCol.trim();
-    // Exclude common headers
-    if (
-      firstCol && 
-      firstCol.toLowerCase() !== "name" && 
-      firstCol.toLowerCase() !== "names" && 
-      firstCol !== "ชื่อ" && 
-      firstCol !== "รายชื่อ" && 
-      firstCol !== "ผู้ส่ง"
-    ) {
+    if (firstCol) {
       names.push(firstCol);
     }
   }

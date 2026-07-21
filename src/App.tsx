@@ -21,8 +21,8 @@ import {
   overwriteReportsInSheet,
   overwriteSubmittersInSheet,
   ensureSheetSchema,
+  User,
 } from "./lib/googleService";
-import { User } from "firebase/auth";
 import { computeStreakBonusWinners } from "./utils/streak";
 
 // Safe fetch helper to handle non-JSON responses gracefully
@@ -93,7 +93,6 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [isAuthDomainError, setIsAuthDomainError] = useState(false);
 
   // Celebration States
   const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
@@ -183,7 +182,6 @@ export default function App() {
   const handleGoogleSignIn = async () => {
     try {
       setErrorMsg(null);
-      setIsAuthDomainError(false);
       const result = await googleSignIn();
       if (result) {
         setGoogleUser(result.user);
@@ -201,9 +199,6 @@ export default function App() {
         setErrorMsg(
           "⚠️ การเข้าสู่ระบบล้มเหลวเนื่องจากป๊อปอัปความปลอดภัยถูกปิดลงหรือถูกบล็อกโดยเบราว์เซอร์"
         );
-      } else if (err.code === "auth/unauthorized-domain" || err.message?.includes("unauthorized-domain")) {
-        setErrorMsg("เข้าสู่ระบบล้มเหลว: โดเมนปัจจุบันยังไม่ได้รับอนุญาตในโครงการ Firebase (auth/unauthorized-domain)");
-        setIsAuthDomainError(true);
       } else {
         setErrorMsg("เข้าสู่ระบบล้มเหลว: " + err.message);
       }
@@ -218,10 +213,27 @@ export default function App() {
       setAccessToken(null);
       setSpreadsheetId(null);
       localStorage.removeItem("sparkle_spreadsheet_id");
-      setSuccessMsg("ออกจากระบบ Google เรียบร้อยแล้ว (สลับเป็นโหมดออฟไลน์)");
+      
+      // Clear server-side Google Sheet connection URL
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submitters: dbState?.submitters || [],
+          googleSheetUrl: ""
+        })
+      });
+
+      setSuccessMsg("ลบข้อมูลการเชื่อมต่อทั้งหมดและออกจากระบบ Google เรียบร้อยแล้ว (สลับเป็นโหมดโลคอล)");
       fetchData();
     } catch (err: any) {
-      console.error("Logout failed:", err);
+      console.error("Logout/Disconnect failed:", err);
+      setGoogleUser(null);
+      setAccessToken(null);
+      setSpreadsheetId(null);
+      localStorage.removeItem("sparkle_spreadsheet_id");
+      setSuccessMsg("ออกจากระบบ Google เรียบร้อยแล้ว");
+      fetchData();
     }
   };
 
@@ -230,7 +242,6 @@ export default function App() {
       (user, token) => {
         setGoogleUser(user);
         setAccessToken(token);
-        setIsAuthDomainError(false);
         syncFromGoogle(token, spreadsheetId);
       },
       () => {
@@ -510,54 +521,6 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
-            {googleUser ? (
-              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-100 p-1.5 pl-3 pr-2.5 rounded-2xl text-xs font-extrabold shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="max-w-[120px] truncate font-bold" title={googleUser.email || ""}>
-                  {googleUser.email ? googleUser.email.split("@")[0] : "แชร์ข้อมูลแล้ว"}
-                </span>
-                {dbState?.googleSheetUrl && (
-                  <a
-                    href={dbState.googleSheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 hover:bg-emerald-100 rounded-lg transition"
-                    title="เปิด Google Sheet ที่เชื่อมต่อ"
-                  >
-                    <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                  </a>
-                )}
-                <button
-                  onClick={handleForceSync}
-                  disabled={isSyncingGoogle}
-                  className="p-1 hover:bg-emerald-100 rounded-lg transition cursor-pointer"
-                  title="ซิงก์ข้อมูลด่วน"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingGoogle ? "animate-spin" : ""}`} />
-                </button>
-                <button
-                  onClick={handleGoogleSignOut}
-                  className="p-1 hover:bg-red-50 text-red-600 rounded-lg transition cursor-pointer"
-                  title="ปิดโหมดแชร์และออกจากระบบ"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleGoogleSignIn}
-                className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-extrabold px-3.5 py-2 rounded-2xl text-xs transition cursor-pointer shadow-xs active:scale-95"
-                title="ลงชื่อเข้าใช้งานด้วย Google"
-              >
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-4 h-4 shrink-0">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                </svg>
-                <span>เชื่อมต่อ Google Sheets</span>
-              </button>
-            )}
 
             <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
               <span className="text-xs font-black text-slate-700 bg-white shadow-xs px-3.5 py-1.5 rounded-xl border border-slate-200">
@@ -602,104 +565,12 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setErrorMsg(null);
-                      setIsAuthDomainError(false);
                       fetchData();
                     }}
                     className="inline-flex items-center gap-1.5 bg-rose-200 hover:bg-rose-300 text-rose-800 px-3 py-1.5 rounded-xl text-[11px] font-black transition active:scale-95 cursor-pointer whitespace-nowrap"
                   >
                     ปิด
                   </button>
-                </div>
-              </motion.div>
-            )}
-
-            {isAuthDomainError && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-indigo-50 border border-indigo-100 text-slate-800 p-6 rounded-3xl space-y-4 shadow-sm"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-indigo-100/60 text-indigo-600 rounded-2xl shrink-0 mt-0.5">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-extrabold text-indigo-950 text-sm">💡 วิธีการแก้ไขปัญหาการเข้าสู่ระบบ (auth/unauthorized-domain)</h3>
-                    <p className="text-slate-600 text-xs font-semibold leading-relaxed">
-                      เนื่องจาก Firebase Authentication ต้องการให้ตั้งค่า "โดเมนที่ได้รับอนุญาต" (Authorized Domains) ก่อนทำการลงชื่อเข้าใช้งานด้วย Google โปรดทำตามขั้นตอนสั้นๆ ด้านล่างนี้เพื่อเปิดสิทธิ์การใช้งาน:
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-4 border border-indigo-100/40 text-xs font-semibold text-slate-700 space-y-3 shadow-xs">
-                  <p className="font-black text-indigo-950">📋 ขั้นตอนการตั้งค่าใน Firebase Console:</p>
-                  <ol className="list-decimal pl-5 space-y-2 leading-relaxed">
-                    <li>
-                      เปิดหน้าการตั้งค่า OAuth ของโครงการ Firebase นี้:{" "}
-                      <a
-                        href="https://console.firebase.google.com/u/0/project/composite-strata-s07pf/authentication/providers"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline font-extrabold inline-flex items-center gap-0.5"
-                      >
-                        เปิด Firebase Console <Globe className="w-3.5 h-3.5 inline" />
-                      </a>
-                    </li>
-                    <li>เลื่อนลงไปที่ส่วน <strong>"โดเมนที่ได้รับอนุญาต" (Authorized domains)</strong> ด้านล่างสุด</li>
-                    <li>
-                      คลิกปุ่ม <strong>"เพิ่มโดเมน" (Add domain)</strong> จากนั้นนำโดเมนด้านล่างนี้ไปใส่ให้ครบทั้ง 2 ตัว:
-                    </li>
-                  </ol>
-
-                  <div className="space-y-2.5 pt-1.5">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg shrink-0 font-bold">โดเมนที่ 1 (Dev)</span>
-                      <div className="flex-1 flex gap-1.5">
-                        <input
-                          type="text"
-                          readOnly
-                          value="ais-dev-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app"
-                          className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5 text-[11px] font-mono select-all text-slate-700 font-medium"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText("ais-dev-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app");
-                            alert("คัดลอก โดเมนที่ 1 เรียบร้อย!");
-                          }}
-                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-xl font-bold text-[11px] border border-indigo-100 transition whitespace-nowrap active:scale-95 cursor-pointer"
-                        >
-                          คัดลอก
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg shrink-0 font-bold">โดเมนที่ 2 (Pre)</span>
-                      <div className="flex-1 flex gap-1.5">
-                        <input
-                          type="text"
-                          readOnly
-                          value="ais-pre-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app"
-                          className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5 text-[11px] font-mono select-all text-slate-700 font-medium"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText("ais-pre-q76pmvcvlbo5vtoacqtc4z-829245447883.asia-southeast1.run.app");
-                            alert("คัดลอก โดเมนที่ 2 เรียบร้อย!");
-                          }}
-                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-xl font-bold text-[11px] border border-indigo-100 transition whitespace-nowrap active:scale-95 cursor-pointer"
-                        >
-                          คัดลอก
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-100 font-semibold leading-relaxed">
-                    💡 เมื่อกดเพิ่มใน Firebase Console เรียบร้อยแล้ว สามารถกดปุ่ม <strong>"ลองเข้าสู่ระบบอีกครั้ง"</strong> ด้านบนได้ทันทีเลยครับ!
-                  </p>
                 </div>
               </motion.div>
             )}
